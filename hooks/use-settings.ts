@@ -10,6 +10,7 @@ interface AppearanceSettings {
 interface SystemSettings {
   notifications: boolean
   syncInterval: number
+  suppressShortcutWarning: boolean
 }
 
 interface UISettings {
@@ -26,7 +27,8 @@ const appearanceSettings = storage.defineItem<AppearanceSettings>('local:appeara
 const systemSettings = storage.defineItem<SystemSettings>('local:systemSettings', {
   fallback: {
     notifications: true,
-    syncInterval: 15
+    syncInterval: 15,
+    suppressShortcutWarning: false
   }
 })
 
@@ -38,7 +40,11 @@ const uiSettings = storage.defineItem<UISettings>('local:uiSettings', {
 
 export function useSettings() {
   const [appearance, setAppearance] = useState<AppearanceSettings>({ theme: 'system' })
-  const [system, setSystem] = useState<SystemSettings>({ notifications: true, syncInterval: 15 })
+  const [system, setSystem] = useState<SystemSettings>({ 
+    notifications: true, 
+    syncInterval: 15,
+    suppressShortcutWarning: false 
+  })
   const [ui, setUI] = useState<UISettings>({ activeTab: 'home' })
   const [loading, setLoading] = useState(true)
 
@@ -109,7 +115,7 @@ export function useSettings() {
       
       // Reset to default values
       const defaultAppearance = { theme: 'system' as Theme }
-      const defaultSystem = { notifications: true, syncInterval: 15 }
+      const defaultSystem = { notifications: true, syncInterval: 15, suppressShortcutWarning: false }
       const defaultUI = { activeTab: 'home' }
       
       setAppearance(defaultAppearance)

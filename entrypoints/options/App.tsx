@@ -52,6 +52,7 @@ import ContentManager from './pages/ContentManager'
 import CategoryManager from './pages/CategoryManager'
 import SyncManager from './pages/SyncManager'
 import Settings from './pages/Settings'
+import TagManager from './pages/TagManager'
 
 type MenuSubItem = {
   label: string
@@ -77,7 +78,8 @@ const menuItems: MenuItem[] = [
     label: '提示词管理',
     items: [
       { label: '内容管理', href: '#' },
-      { label: '分类管理', href: '#' }
+      { label: '分类管理', href: '#' },
+      { label: '标签管理', href: '#' }
     ]
   },
   {
@@ -171,7 +173,7 @@ const SidebarGroupedMenuItems = ({
 }
 
 const ApplicationShell = () => {
-  const [breadcrumbItems, setBreadcrumbItems] = useState<string[]>(['提示词管理', '内容管理'])
+  const [breadcrumbItems, setBreadcrumbItems] = useState<string[]>(['提示词管理', '内容管理', '标签管理'])
 
   const handleMenuClick = (label: string, subLabel?: string) => {
     if (subLabel) {
@@ -190,6 +192,7 @@ const ApplicationShell = () => {
     if (mainLabel === '提示词管理') {
       if (subLabel === '内容管理') return <ContentManager />
       if (subLabel === '分类管理') return <CategoryManager />
+      if (subLabel === '标签管理') return <TagManager />
     }
     if (mainLabel === '同步管理') {
       // 由于SyncManager页面包含所有同步选项，这里简化处理，都显示SyncManager
