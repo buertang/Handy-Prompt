@@ -27,24 +27,14 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
-
-export type Prompt = {
-  id: string
-  title: string
-  tags: string[]
-  content: string
-  description?: string
-  createTime: string
-  lastModified: string
-  enabled: boolean
-  category: string
-}
+import type { Prompt, Category, Tag } from '@/lib/db'
 
 interface PromptDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   prompt?: Prompt | null
-  categories: string[]
+  categories: Category[]
+  tags?: Tag[]
   onSave: (prompt: Prompt) => void
 }
 
@@ -57,7 +47,7 @@ const defaultPrompt: Prompt = {
   createTime: '',
   lastModified: '',
   enabled: true,
-  category: '默认'
+  categoryId: ''
 }
 
 export function PromptDialog({
@@ -65,10 +55,16 @@ export function PromptDialog({
   onOpenChange,
   prompt,
   categories,
+  tags = [],
   onSave
 }: PromptDialogProps) {
   const [formData, setFormData] = useState<Prompt>(defaultPrompt)
   const [selectedTags, setSelectedTags] = useState<Option[]>([])
+
+  // Sort categories by createTime descending (newest first)
+  const sortedCategories = [...categories].sort((a, b) =>
+    (b.createTime || '').localeCompare(a.createTime || '')
+  )
 
   useEffect(() => {
     if (open) {
@@ -77,25 +73,31 @@ export function PromptDialog({
         setSelectedTags(prompt.tags.map(tag => ({ label: tag, value: tag })))
       } else {
         // New prompt
-        const now = new Date().toISOString().split('T')[0]
+        const now = new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-')
+        const defaultCategory = categories.find(c => c.isDefault) || categories[0]
+
         setFormData({
           ...defaultPrompt,
           id: crypto.randomUUID(),
           createTime: now,
           lastModified: now,
-          category: categories[0] || '默认'
+          categoryId: defaultCategory?.id || ''
         })
         setSelectedTags([])
       }
     }
   }, [open, prompt, categories])
 
+  const tagOptions: Option[] = tags.map(t => ({ label: t.name, value: t.name }))
+
   const handleSave = () => {
+    if (!formData.title.trim()) return
+
     // Process tags
     const tags = selectedTags.map(t => t.value)
 
     // Update modify time
-    const now = new Date().toISOString().split('T')[0]
+    const now = new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-')
 
     onSave({
       ...formData,
@@ -134,8 +136,8 @@ export function PromptDialog({
             <div className="grid gap-2">
               <Label htmlFor="category">分类</Label>
               <Select
-                value={formData.category}
-                onValueChange={(value) => setFormData({ ...formData, category: value })}
+                value={formData.categoryId}
+                onValueChange={(value) => setFormData({ ...formData, categoryId: value })}
               >
                 <SelectTrigger
                   id="category"
@@ -144,8 +146,8 @@ export function PromptDialog({
                   <SelectValue placeholder="选择分类" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map(c => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  {sortedCategories.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -160,6 +162,27 @@ export function PromptDialog({
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="简短描述提示词的作用"
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="author">作者</Label>
+              <Input
+                id="author"
+                value={formData.author || ''}
+                onChange={(e) => setFormData({ ...formData, author: e.target.value })}
+                placeholder="(可选)"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="source">来源</Label>
+              <Input
+                id="source"
+                value={formData.source || ''}
+                onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+                placeholder="(可选)"
+              />
+            </div>
           </div>
 
           <div className="grid gap-2">
@@ -178,6 +201,7 @@ export function PromptDialog({
             <MultipleSelector
               value={selectedTags}
               onChange={setSelectedTags}
+              defaultOptions={tagOptions}
               placeholder="选择或输入标签..."
               creatable
               emptyIndicator={

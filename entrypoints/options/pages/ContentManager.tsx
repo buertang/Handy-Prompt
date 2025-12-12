@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { db, type Prompt, type Category } from '@/lib/db'
 import {
   Search,
   Plus,
@@ -11,7 +13,10 @@ import {
   Rows3,
   Clock,
   Calendar,
-  ArrowUp
+  ArrowUp,
+  ArrowUpDown,
+  User,
+  Globe,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -26,91 +31,62 @@ import {
   DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
-import { PromptDialog, type Prompt } from '@/components/prompt-dialog'
-
-// Mock Data
-const mockPrompts: Prompt[] = [
-  {
-    id: '1',
-    title: '吉卜力风格',
-    tags: ['画图', '吉卜力'],
-    content: '将图片转换为吉卜力风格...',
-    description: '将图片转换为吉卜力风格',
-    createTime: '2024-03-01',
-    lastModified: '无修改时间',
-    enabled: true,
-    category: '风格化'
-  },
-  {
-    id: '2',
-    title: '代码解释',
-    tags: ['编程'],
-    content: '请解释以下代码的功能和工作原理：\n```\n...\n```',
-    description: '请解释以下代码的功能和工作原理',
-    createTime: '2024-03-05',
-    lastModified: '无修改时间',
-    enabled: true,
-    category: '编程'
-  },
-  {
-    id: '3',
-    title: '开发角色',
-    tags: ['编程', '变量'],
-    content: '你现在是一个{{角色}}，有着{{年限}}年的开发经验，擅长{{技能}}。',
-    description: '你现在是一个{{角色}}，有着{{年限}}年的开发经验，擅长{{技能}}。',
-    createTime: '2024-03-10',
-    lastModified: '无修改时间',
-    enabled: true,
-    category: '编程'
-  },
-  {
-    id: '4',
-    title: '周报生成器',
-    tags: ['办公', '写作'],
-    content: '请根据以下工作内容生成一份周报...',
-    description: '快速生成高质量周报',
-    createTime: '2024-03-15',
-    lastModified: '2024-03-20',
-    enabled: false,
-    category: '办公'
-  },
-  {
-    id: '5',
-    title: '英语口语教练',
-    tags: ['语言', '教育'],
-    content: '你是一位专业的英语口语教练...',
-    description: '练习英语口语对话',
-    createTime: '2024-03-18',
-    lastModified: '2024-03-21',
-    enabled: true,
-    category: '教育'
-  }
-]
+import { PromptDialog } from '@/components/prompt-dialog'
 
 export default function ContentManager() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const [sortOption, setSortOption] = useState<'title' | 'createTime' | 'lastModified' | 'category'>('createTime')
   const [columns, setColumns] = useState(3)
-  const [prompts, setPrompts] = useState(mockPrompts)
+
+  // DB Queries
+  const prompts = useLiveQuery(() => db.prompts.toArray()) || []
+  const categories = useLiveQuery(() => db.categories.toArray()) || []
+  const tags = useLiveQuery(() => db.tags.toArray()) || []
+
+  const categoryMap = useMemo(() => {
+    return categories.reduce((acc, cat) => {
+      acc[cat.id] = cat
+      return acc
+    }, {} as Record<string, Category>)
+  }, [categories])
 
   // Dialog State
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null)
 
   const filteredPrompts = useMemo(() => {
-    return prompts.filter(prompt => {
+    const filtered = prompts.filter(prompt => {
+      const categoryName = categoryMap[prompt.categoryId]?.name || '未知'
       const matchesSearch =
         prompt.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         prompt.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
         prompt.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
-      const matchesCategory = selectedCategory === 'all' || prompt.category === selectedCategory
+      const matchesCategory = selectedCategory === 'all' || categoryMap[prompt.categoryId]?.id === selectedCategory
       return matchesSearch && matchesCategory
     })
-  }, [searchTerm, selectedCategory, prompts])
 
-  // Get unique categories for filter
-  const allCategories = useMemo(() => Array.from(new Set(prompts.map(p => p.category))), [prompts])
-  const filterCategories = ['all', ...allCategories]
+    return filtered.sort((a, b) => {
+      switch (sortOption) {
+        case 'title':
+          return a.title.localeCompare(b.title, 'zh-CN')
+        case 'createTime':
+          return (b.createTime || '').localeCompare(a.createTime || '')
+        case 'lastModified':
+          return (b.lastModified || '').localeCompare(a.lastModified || '')
+        case 'category':
+          const catA = categoryMap[a.categoryId]?.name || ''
+          const catB = categoryMap[b.categoryId]?.name || ''
+          return catA.localeCompare(catB, 'zh-CN')
+        default:
+          return 0
+      }
+    })
+  }, [searchTerm, selectedCategory, prompts, categoryMap, sortOption])
+
+  const filterCategories = useMemo(() => {
+    return [{ id: 'all', name: '所有分类' }, ...categories]
+  }, [categories])
 
   const gridColsClass = {
     1: 'grid-cols-1',
@@ -120,14 +96,14 @@ export default function ContentManager() {
     5: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
   }[columns]
 
-  const getCategoryColor = (category: string) => {
+  const getCategoryColor = (categoryName: string) => {
     const colors: Record<string, string> = {
       '风格化': 'bg-orange-400',
       '编程': 'bg-green-500',
       '办公': 'bg-blue-500',
       '教育': 'bg-purple-500'
     }
-    return colors[category] || 'bg-gray-400'
+    return colors[categoryName] || 'bg-gray-400'
   }
 
   const handleCopy = (text: string) => {
@@ -145,25 +121,42 @@ export default function ContentManager() {
     setIsDialogOpen(true)
   }
 
-  const handleSave = (prompt: Prompt) => {
+  const handleSave = async (prompt: Prompt) => {
+    // Check for new tags and add them to db.tags
+    if (prompt.tags && prompt.tags.length > 0) {
+      const existingTagNames = new Set(tags.map(t => t.name));
+      const newTags = prompt.tags.filter(t => !existingTagNames.has(t));
+
+      if (newTags.length > 0) {
+        const now = new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-');
+        await db.tags.bulkAdd(newTags.map(name => ({
+          id: crypto.randomUUID(),
+          name,
+          createTime: now,
+          lastModified: now
+        })));
+      }
+    }
+
     if (editingPrompt) {
-      setPrompts(prev => prev.map(p => p.id === prompt.id ? prompt : p))
+      await db.prompts.put(prompt)
     } else {
-      setPrompts(prev => [...prev, prompt])
+      await db.prompts.add(prompt)
     }
     setIsDialogOpen(false)
     setEditingPrompt(null)
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('确定要删除这个提示词吗？')) {
-      setPrompts(prev => prev.filter(p => p.id !== id))
+      await db.prompts.delete(id)
     }
   }
 
-  const handleToggleEnabled = (id: string, enabled: boolean) => {
-    setPrompts(prev => prev.map(p => p.id === id ? { ...p, enabled } : p))
+  const handleToggleEnabled = async (id: string, enabled: boolean) => {
+    await db.prompts.update(id, { enabled })
   }
+
 
   return (
     <div className='flex flex-col gap-6 h-full'>
@@ -194,16 +187,41 @@ export default function ContentManager() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant='outline' className='w-[120px] justify-between'>
-                {selectedCategory === 'all' ? '所有分类' : selectedCategory}
+                {selectedCategory === 'all' ? '所有分类' : categoryMap[selectedCategory]?.name || '未知分类'}
                 <Rows3 className='h-4 w-4 opacity-50' />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               {filterCategories.map(category => (
-                <DropdownMenuItem key={category} onClick={() => setSelectedCategory(category)}>
-                  {category === 'all' ? '所有分类' : category}
+                <DropdownMenuItem key={category.id} onClick={() => setSelectedCategory(category.id)}>
+                  {category.name}
                 </DropdownMenuItem>
               ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="w-[120px] justify-between">
+                <span className="flex items-center gap-2">
+                  <ArrowUpDown className="h-4 w-4 opacity-50" />
+                  排序
+                </span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setSortOption('title')}>
+                标题 {sortOption === 'title' && '✓'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSortOption('createTime')}>
+                创建时间 {sortOption === 'createTime' && '✓'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSortOption('lastModified')}>
+                最近修改 {sortOption === 'lastModified' && '✓'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSortOption('category')}>
+                分类 {sortOption === 'category' && '✓'}
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -267,8 +285,8 @@ export default function ContentManager() {
                 </div>
                 <div className='shrink-0'>
                   <div className='flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-md border'>
-                    <span className={cn('w-2 h-2 rounded-full', getCategoryColor(prompt.category))}></span>
-                    {prompt.category}
+                    <span className={cn('w-2 h-2 rounded-full', getCategoryColor(categoryMap[prompt.categoryId]?.name || '默认'))}></span>
+                    {categoryMap[prompt.categoryId]?.name || '未知'}
                   </div>
                 </div>
               </div>
@@ -286,6 +304,22 @@ export default function ContentManager() {
                   <Clock className="h-3.5 w-3.5" />
                   <span>修改于: {prompt.lastModified}</span>
                 </div>
+                {(prompt.author || prompt.source) && (
+                  <div className='flex items-center gap-3 mt-1 pt-1 border-t border-dashed'>
+                    {prompt.author && (
+                      <div className='flex items-center gap-1.5' title="作者">
+                        <User className="h-3.5 w-3.5" />
+                        <span>{prompt.author}</span>
+                      </div>
+                    )}
+                    {prompt.source && (
+                      <div className='flex items-center gap-1.5' title="来源">
+                        <Globe className="h-3.5 w-3.5" />
+                        <span>{prompt.source}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </CardContent>
             <CardFooter className='pt-2 pb-4 px-4 flex justify-between items-center mt-auto'>
@@ -345,7 +379,8 @@ export default function ContentManager() {
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
         prompt={editingPrompt}
-        categories={allCategories}
+        categories={categories}
+        tags={tags}
         onSave={handleSave}
       />
     </div>

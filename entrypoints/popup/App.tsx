@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
-import { 
-  FolderIcon, 
-  CommandIcon, 
-  MousePointerClickIcon, 
+import { Toaster } from 'sonner';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '@/lib/db';
+import {
+  FolderIcon,
+  CommandIcon,
+  MousePointerClickIcon,
   AlertTriangleIcon,
   Sun,
   Moon,
@@ -16,7 +19,24 @@ import { useTheme } from '@/hooks/use-theme';
 import { browser } from 'wxt/browser';
 
 function App() {
-  const [promptCount, setPromptCount] = useState(3); // Mock data
+  const prompts = useLiveQuery(async () => {
+    try {
+      // Fallback to simpler query to avoid TS/Index issues
+      const all = await db.prompts.toArray();
+      const enabled = all.filter(p => p.enabled);
+
+      console.log('DB Query Result:', {
+        total: all.length,
+        enabled: enabled.length
+      });
+
+      return enabled;
+    } catch (error) {
+      console.error("Failed to query prompts:", error);
+      return [];
+    }
+  }) || [];
+  const promptCount = prompts.length;
   const { system, updateSystem, appearance, updateAppearance } = useSettings();
   const [hasShortcut, setHasShortcut] = useState(true);
 
@@ -27,16 +47,19 @@ function App() {
       const actionCommand = commands.find(
         (cmd) => cmd.name === '_execute_action' || cmd.name === '_execute_browser_action'
       );
-      
+
       // If the command exists and has a shortcut assigned
       if (actionCommand && actionCommand.shortcut) {
         setHasShortcut(true);
       } else {
         setHasShortcut(false);
       }
+    }).catch(err => {
+      console.error("Failed to get commands", err);
+      // Fallback or ignore error
     });
   }, []);
-  
+
   // Initialize theme handling
   const { setTheme } = useTheme({
     theme: appearance.theme,
@@ -79,16 +102,16 @@ function App() {
   };
 
   return (
-    <div className="w-[360px] bg-background text-foreground flex flex-col font-sans">
+    <div className="w-[360px] h-full bg-background text-foreground flex flex-col font-sans overflow-hidden">
       {/* Header */}
       <header className="flex items-center justify-between p-3 border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="flex items-center gap-2">
           <img src={LogoSvg} alt="Handy Prompt" className="w-8 h-8 rounded-lg shadow-sm" />
           <h1 className="text-lg font-bold tracking-tight">Handy Prompt</h1>
         </div>
-        <Button 
-          variant="ghost" 
-          size="icon" 
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={handleThemeClick}
           title={`Current theme: ${appearance.theme}`}
         >
@@ -112,8 +135,8 @@ function App() {
             </div>
           </CardHeader>
           <CardContent className="p-3 pt-2">
-            <Button 
-              className="w-full font-medium shadow-sm" 
+            <Button
+              className="w-full font-medium shadow-sm"
               size="default"
               onClick={handleManagePrompts}
             >
@@ -139,7 +162,7 @@ function App() {
                 </p>
               </div>
             </div>
-            
+
             <div className="flex items-start gap-3">
               <div className="bg-primary/10 p-1.5 rounded-md mt-0.5">
                 <MousePointerClickIcon className="w-4 h-4 text-primary" />
@@ -164,13 +187,13 @@ function App() {
                   未检测到快捷键配置，可能影响使用体验。
                 </p>
                 <div className="flex gap-3">
-                  <button 
+                  <button
                     onClick={handleConfigureShortcuts}
                     className="text-[11px] font-medium text-amber-700 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300 underline underline-offset-2"
                   >
                     前往设置快捷键
                   </button>
-                  <button 
+                  <button
                     onClick={handleDismissWarning}
                     className="text-[11px] font-medium text-amber-700/70 hover:text-amber-800 dark:text-amber-400/70 dark:hover:text-amber-300"
                   >
@@ -182,6 +205,7 @@ function App() {
           </div>
         )}
       </main>
+      <Toaster />
     </div>
   );
 }

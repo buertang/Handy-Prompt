@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ComponentType } from 'react'
 
+import { Toaster } from 'sonner'
 import {
   ArrowRightLeftIcon,
   ChevronRightIcon,
@@ -297,6 +298,7 @@ const ApplicationShell = () => {
           </main>
         </div>
       </SidebarProvider>
+      <Toaster />
     </div>
   )
 }

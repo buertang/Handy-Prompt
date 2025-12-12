@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   Search,
   Plus,
@@ -7,7 +7,7 @@ import {
   Pencil,
   Trash2,
   FileText,
-  Database,
+  ArrowUpDown,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,57 +15,89 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
-import { CategoryDialog, type Category } from '@/components/category-dialog'
-
-// 模拟数据
-const mockCategories: Category[] = [
-  {
-    id: 'default',
-    name: '默认',
-    description: '系统默认分类，用于存放未分类的提示词',
-    promptCount: 0,
-    enabled: true,
-    isDefault: true,
-    color: 'bg-indigo-500'
-  },
-  {
-    id: 'coding',
-    name: '编程开发',
-    description: '编程、代码相关的提示词，包含各种语言和框架的助手',
-    promptCount: 2,
-    enabled: true,
-    isDefault: false,
-    color: 'bg-emerald-500'
-  },
-  {
-    id: 'drawing',
-    name: '绘画',
-    description: '绘画相关的提示词，包含Midjourney、Stable Diffusion等',
-    promptCount: 1,
-    enabled: true,
-    isDefault: false,
-    color: 'bg-amber-500'
-  }
-]
+import { CategoryDialog, type Category as DialogCategory } from '@/components/category-dialog'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { db, type Category } from '@/lib/db'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 
 export default function CategoryManager() {
-  const [categories, setCategories] = useState(mockCategories)
   const [searchQuery, setSearchQuery] = useState('')
+  const [sortOption, setSortOption] = useState<'name' | 'promptCount' | 'createTime' | 'lastModified'>('createTime')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null)
+  const [editingCategory, setEditingCategory] = useState<DialogCategory | null>(null)
 
-  // 统计数据
+  // Delete confirmation state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null)
+  const [deleteOption, setDeleteOption] = useState<'move' | 'delete'>('move')
+
+  // Live Query for real-time data
+  const categories = useLiveQuery(() => db.categories.toArray()) || []
+  const prompts = useLiveQuery(() => db.prompts.toArray()) || []
+
+  // Derived state with prompt counts
+  const categoriesWithStats = useMemo(() => {
+    const stats: Record<string, number> = {}
+    prompts.forEach(p => {
+      if (p.categoryId) {
+        stats[p.categoryId] = (stats[p.categoryId] || 0) + 1
+      }
+    })
+
+    return categories.map(cat => ({
+      ...cat,
+      promptCount: stats[cat.id] || 0,
+      // Ensure optional fields have defaults for UI
+      description: cat.description || '',
+      enabled: cat.enabled ?? true,
+      color: cat.color || 'bg-gray-500'
+    }))
+  }, [categories, prompts])
+
+  // Statistics
   const totalCategories = categories.length
-  const enabledCategories = categories.filter(c => c.enabled).length
-  const totalPrompts = categories.reduce((acc, curr) => acc + curr.promptCount, 0)
+  const enabledCategories = categoriesWithStats.filter(c => c.enabled).length
+  const totalPrompts = prompts.length
 
-  // 过滤分类
-  const filteredCategories = categories.filter(c =>
-    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.description.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  // Filter and Sort categories
+  const filteredCategories = useMemo(() => {
+    const filtered = categoriesWithStats.filter(c =>
+      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (c.description || '').toLowerCase().includes(searchQuery.toLowerCase())
+    )
 
-  const handleEdit = (category: Category) => {
+    return filtered.sort((a, b) => {
+      switch (sortOption) {
+        case 'name':
+          return a.name.localeCompare(b.name, 'zh-CN')
+        case 'promptCount':
+          return b.promptCount - a.promptCount
+        case 'createTime':
+          return (b.createTime || '').localeCompare(a.createTime || '')
+        case 'lastModified':
+          return (b.lastModified || '').localeCompare(a.lastModified || '')
+        default:
+          return 0
+      }
+    })
+  }, [categoriesWithStats, searchQuery, sortOption])
+
+  const handleEdit = (category: DialogCategory) => {
     setEditingCategory(category)
     setIsDialogOpen(true)
   }
@@ -75,21 +107,97 @@ export default function CategoryManager() {
     setIsDialogOpen(true)
   }
 
-  const handleSave = (category: Category) => {
-    if (editingCategory) {
-      // 编辑模式
-      setCategories(prev => prev.map(c => c.id === category.id ? category : c))
-    } else {
-      // 新增模式
-      setCategories(prev => [...prev, category])
+  const handleSave = async (categoryData: DialogCategory) => {
+    try {
+      const now = new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-');
+
+      let createTime = now;
+      if (editingCategory) {
+        const existing = await db.categories.get(categoryData.id);
+        if (existing && existing.createTime) {
+          createTime = existing.createTime;
+        }
+      }
+
+      const categoryToSave: Category = {
+        id: categoryData.id,
+        name: categoryData.name,
+        isDefault: categoryData.isDefault,
+        description: categoryData.description,
+        enabled: categoryData.enabled,
+        color: categoryData.color,
+        createTime,
+        lastModified: now
+      }
+
+      if (editingCategory) {
+        await db.categories.put(categoryToSave)
+      } else {
+        await db.categories.add(categoryToSave)
+      }
+      setIsDialogOpen(false)
+      setEditingCategory(null)
+    } catch (error: any) {
+      if (error.name === 'ConstraintError') {
+        alert('分类名称已存在，请使用其他名称。')
+      } else {
+        console.error('Failed to save category:', error)
+        alert('保存失败，请重试。')
+      }
     }
-    setIsDialogOpen(false)
-    setEditingCategory(null)
+  }
+
+  const initiateDelete = (category: Category) => {
+    setCategoryToDelete(category)
+    setDeleteOption('move') // Default option
+    setDeleteDialogOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!categoryToDelete) return
+
+    try {
+      await db.transaction('rw', db.prompts, db.categories, async () => {
+        if (deleteOption === 'move') {
+          // Find default category
+          const defaultCat = await db.categories.where('isDefault').equals(true as any).first() // Cast to any due to dexie boolean indexing quirks if not indexed, but here we just filter
+          // Actually isDefault is not indexed in db.ts, so we should find it from array or add index.
+          // Since we have categories loaded in memory via useLiveQuery, we can find it there, but inside transaction better to query or assume we have it.
+          // Let's iterate or use the one we know.
+          let targetCategoryId = defaultCat?.id
+
+          if (!targetCategoryId) {
+            // If no default category found, fallback to keeping them (or maybe error?)
+            // Let's find any other category if default is missing, or create one?
+            // For now, assume default exists.
+            const allCats = await db.categories.toArray()
+            const def = allCats.find(c => c.isDefault) || allCats[0]
+            targetCategoryId = def?.id
+          }
+
+          if (targetCategoryId) {
+            // Move prompts
+            await db.prompts.where('categoryId').equals(categoryToDelete.id).modify({ categoryId: targetCategoryId })
+          }
+        } else {
+          // Delete prompts
+          await db.prompts.where('categoryId').equals(categoryToDelete.id).delete()
+        }
+
+        // Delete the category
+        await db.categories.delete(categoryToDelete.id)
+      })
+
+      setDeleteDialogOpen(false)
+      setCategoryToDelete(null)
+    } catch (error) {
+      console.error('Failed to delete category:', error)
+    }
   }
 
   return (
     <div className="flex flex-col gap-6 h-full">
-      {/* 头部区域 */}
+      {/* Header */}
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-4">
           <h1 className="text-2xl font-bold">分类管理</h1>
@@ -104,7 +212,7 @@ export default function CategoryManager() {
         </p>
       </div>
 
-      {/* 工具栏 */}
+      {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between bg-card p-4 rounded-lg border shadow-sm">
         <div className="flex gap-2 flex-1 w-full sm:w-auto">
           <div className="relative flex-1 sm:max-w-xs">
@@ -118,6 +226,29 @@ export default function CategoryManager() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <ArrowUpDown className="h-4 w-4" />
+                排序
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setSortOption('name')}>
+                名称 {sortOption === 'name' && '✓'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSortOption('promptCount')}>
+                提示词数量 {sortOption === 'promptCount' && '✓'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSortOption('createTime')}>
+                创建时间 {sortOption === 'createTime' && '✓'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSortOption('lastModified')}>
+                最近修改 {sortOption === 'lastModified' && '✓'}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Button variant="outline" size="sm">
             <Upload className="mr-2 h-4 w-4" /> 导出
           </Button>
@@ -133,7 +264,7 @@ export default function CategoryManager() {
         </div>
       </div>
 
-      {/* 分类列表网格 */}
+      {/* Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
         {filteredCategories.map(category => (
           <Card key={category.id} className="group hover:shadow-lg hover:border-primary/50 transition-all duration-300 overflow-hidden border-muted/60">
@@ -153,7 +284,7 @@ export default function CategoryManager() {
             </CardHeader>
             <CardContent className="pb-3">
               <p className="text-sm text-muted-foreground line-clamp-2 h-10 mb-6 leading-relaxed">
-                {category.description}
+                {category.description || '暂无描述'}
               </p>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground bg-secondary/50 px-2.5 py-1.5 rounded-md">
@@ -163,9 +294,10 @@ export default function CategoryManager() {
                 <div className="flex items-center gap-2">
                   <Switch
                     checked={category.enabled}
-                    onCheckedChange={() => { }}
+                    onCheckedChange={() => { /* Toggle enabled in DB */
+                      db.categories.update(category.id, { enabled: !category.enabled })
+                    }}
                     className="data-[state=checked]:bg-primary"
-                    disabled // 在列表页禁用，需进入编辑页修改
                   />
                   <span className="text-xs font-medium text-muted-foreground min-w-[36px]">
                     {category.enabled ? '已启用' : '已停用'}
@@ -183,7 +315,12 @@ export default function CategoryManager() {
                 <Pencil className="w-3.5 h-3.5 mr-1.5" /> 编辑
               </Button>
               {!category.isDefault && (
-                <Button variant="ghost" size="sm" className="h-8 px-3 text-destructive hover:text-destructive hover:bg-destructive/10">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-3 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => initiateDelete(category)}
+                >
                   <Trash2 className="w-3.5 h-3.5 mr-1.5" /> 删除
                 </Button>
               )}
@@ -192,13 +329,49 @@ export default function CategoryManager() {
         ))}
       </div>
 
-      {/* 编辑/新增分类对话框 */}
+      {/* Edit/Add Dialog */}
       <CategoryDialog
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
         category={editingCategory}
         onSave={handleSave}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>删除分类: {categoryToDelete?.name}</DialogTitle>
+            <DialogDescription>
+              您正在删除一个分类，该分类下包含 {categoriesWithStats.find(c => c.id === categoryToDelete?.id)?.promptCount || 0} 个提示词。请选择如何处理这些提示词。
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            <RadioGroup value={deleteOption} onValueChange={(v) => setDeleteOption(v as 'move' | 'delete')}>
+              <div className="flex items-center space-x-2 mb-4">
+                <RadioGroupItem value="move" id="move" />
+                <Label htmlFor="move" className="cursor-pointer">
+                  <span className="font-bold block">移动到默认分类 (推荐)</span>
+                  <span className="text-xs text-muted-foreground">将该分类下的所有提示词移动到"默认"分类中，保留数据。</span>
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="delete" id="delete" />
+                <Label htmlFor="delete" className="cursor-pointer">
+                  <span className="font-bold block text-destructive">删除所有提示词</span>
+                  <span className="text-xs text-muted-foreground">永久删除该分类下的所有提示词，无法恢复。</span>
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>取消</Button>
+            <Button variant="destructive" onClick={confirmDelete}>确认删除</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
