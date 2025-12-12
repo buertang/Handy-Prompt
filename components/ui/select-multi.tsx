@@ -202,6 +202,7 @@ const MultipleSelector = ({
   const [onScrollbar, setOnScrollbar] = React.useState(false)
   const [isLoading, setIsLoading] = React.useState(false)
   const dropdownRef = React.useRef<HTMLDivElement>(null) // Added this
+  const [dropdownPlacement, setDropdownPlacement] = React.useState<'bottom' | 'top'>('bottom')
 
   const [selected, setSelected] = React.useState<Option[]>(value || [])
 
@@ -269,6 +270,53 @@ const MultipleSelector = ({
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
       document.removeEventListener('touchend', handleClickOutside)
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+
+    const updatePlacement = () => {
+      if (!inputRef.current) return
+      const inputRect = inputRef.current.getBoundingClientRect()
+
+      let containerTop = 0
+      let containerBottom = window.innerHeight || document.documentElement.clientHeight
+
+      let parent: HTMLElement | null = inputRef.current.parentElement
+      while (parent && parent !== document.body) {
+        const style = window.getComputedStyle(parent)
+        const overflowY = style.overflowY
+
+        if (overflowY === 'auto' || overflowY === 'scroll') {
+          const parentRect = parent.getBoundingClientRect()
+          containerTop = parentRect.top
+          containerBottom = parentRect.bottom
+          break
+        }
+
+        parent = parent.parentElement
+      }
+
+      const spaceBelow = containerBottom - inputRect.bottom
+      const spaceAbove = inputRect.top - containerTop
+      const requiredHeight = 170
+
+      if (spaceBelow < requiredHeight && spaceAbove > spaceBelow) {
+        setDropdownPlacement('top')
+      } else {
+        setDropdownPlacement('bottom')
+      }
+    }
+
+    updatePlacement()
+
+    window.addEventListener('resize', updatePlacement)
+    window.addEventListener('scroll', updatePlacement, true)
+
+    return () => {
+      window.removeEventListener('resize', updatePlacement)
+      window.removeEventListener('scroll', updatePlacement, true)
     }
   }, [open])
 
@@ -437,114 +485,117 @@ const MultipleSelector = ({
       shouldFilter={commandProps?.shouldFilter !== undefined ? commandProps.shouldFilter : !onSearch} // When onSearch is provided, we don&lsquo;t want to filter the options. You can still override it.
       filter={commandFilter()}
     >
-      <div
-        className={cn(
-          'border-input focus-within:border-ring focus-within:ring-ring/50 has-aria-invalid:ring-destructive/20 dark:has-aria-invalid:ring-destructive/40 has-aria-invalid:border-destructive relative min-h-[38px] rounded-md border text-sm transition-[color,box-shadow] outline-none focus-within:ring-[3px] has-disabled:pointer-events-none has-disabled:cursor-not-allowed has-disabled:opacity-50',
-          {
-            'p-1': selected.length !== 0,
-            'cursor-text': !disabled && selected.length !== 0
-          },
-          !hideClearAllButton && 'pr-9',
-          className
-        )}
-        onClick={() => {
-          if (disabled) return
-          inputRef?.current?.focus()
-        }}
-      >
-        <div className='flex flex-wrap gap-1'>
-          {selected.map(option => {
-            return (
-              <div
-                key={option.value}
-                className={cn(
-                  'animate-fadeIn bg-background text-secondary-foreground hover:bg-background relative inline-flex h-7 cursor-default items-center rounded-md border pr-7 pl-2 text-xs font-medium transition-all disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 data-fixed:pr-2',
-                  badgeClassName
-                )}
-                data-fixed={option.fixed}
-                data-disabled={disabled || undefined}
-              >
-                {option.label}
-                <button
-                  className='text-muted-foreground/80 hover:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 absolute -inset-y-px -right-px flex size-7 items-center justify-center rounded-r-md border border-transparent p-0 outline-hidden transition-[color,box-shadow] outline-none focus-visible:ring-[3px]'
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') {
-                      handleUnselect(option)
-                    }
-                  }}
-                  onMouseDown={e => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                  }}
-                  onClick={() => handleUnselect(option)}
-                  aria-label='Remove'
-                >
-                  <XIcon size={14} aria-hidden='true' />
-                </button>
-              </div>
-            )
-          })}
-          {/* Avoid having the "Search" Icon */}
-          <CommandPrimitive.Input
-            {...inputProps}
-            ref={inputRef}
-            value={inputValue}
-            disabled={disabled}
-            onValueChange={value => {
-              setInputValue(value)
-              inputProps?.onValueChange?.(value)
-            }}
-            onBlur={event => {
-              if (!onScrollbar) {
-                setOpen(false)
-              }
-
-              inputProps?.onBlur?.(event)
-            }}
-            onFocus={event => {
-              setOpen(true)
-
-              if (triggerSearchOnFocus) {
-                onSearch?.(debouncedSearchTerm)
-              }
-
-              inputProps?.onFocus?.(event)
-            }}
-            placeholder={hidePlaceholderWhenSelected && selected.length !== 0 ? '' : placeholder}
-            className={cn(
-              'placeholder:text-muted-foreground/70 flex-1 bg-transparent outline-hidden disabled:cursor-not-allowed',
-              {
-                'w-full': hidePlaceholderWhenSelected,
-                'px-3 py-2': selected.length === 0,
-                'ml-1': selected.length !== 0
-              },
-              inputProps?.className
-            )}
-          />
-          <button
-            type='button'
-            onClick={() => {
-              setSelected(selected.filter(s => s.fixed))
-              onChange?.(selected.filter(s => s.fixed))
-            }}
-            className={cn(
-              'text-muted-foreground/80 hover:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 absolute top-0 right-0 flex size-9 items-center justify-center rounded-md border border-transparent transition-[color,box-shadow] outline-none focus-visible:ring-[3px]',
-              (hideClearAllButton ||
-                disabled ||
-                selected.length < 1 ||
-                selected.filter(s => s.fixed).length === selected.length) &&
-                'hidden'
-            )}
-            aria-label='Clear all'
-          >
-            <XIcon size={16} aria-hidden='true' />
-          </button>
-        </div>
-      </div>
       <div className='relative'>
         <div
           className={cn(
-            'border-input absolute top-2 z-10 w-full overflow-hidden rounded-md border',
+            'border-input focus-within:border-ring focus-within:ring-ring/50 has-aria-invalid:ring-destructive/20 dark:has-aria-invalid:ring-destructive/40 has-aria-invalid:border-destructive min-h-[38px] rounded-md border text-sm transition-[color,box-shadow] outline-none focus-within:ring-[3px] has-disabled:pointer-events-none has-disabled:cursor-not-allowed has-disabled:opacity-50',
+            {
+              'p-1': selected.length !== 0,
+              'cursor-text': !disabled && selected.length !== 0
+            },
+            !hideClearAllButton && 'pr-9',
+            className
+          )}
+          onClick={() => {
+            if (disabled) return
+            inputRef?.current?.focus()
+          }}
+        >
+          <div className='flex flex-wrap gap-1'>
+            {selected.map(option => {
+              return (
+                <div
+                  key={option.value}
+                  className={cn(
+                    'animate-fadeIn bg-background text-secondary-foreground hover:bg-background relative inline-flex h-7 cursor-default items-center rounded-md border pr-7 pl-2 text-xs font-medium transition-all disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 data-fixed:pr-2',
+                    badgeClassName
+                  )}
+                  data-fixed={option.fixed}
+                  data-disabled={disabled || undefined}
+                >
+                  {option.label}
+                  <button
+                    className='text-muted-foreground/80 hover:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 absolute -inset-y-px -right-px flex size-7 items-center justify-center rounded-r-md border border-transparent p-0 outline-hidden transition-[color,box-shadow] outline-none focus-visible:ring-[3px]'
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        handleUnselect(option)
+                      }
+                    }}
+                    onMouseDown={e => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                    }}
+                    onClick={() => handleUnselect(option)}
+                    aria-label='Remove'
+                  >
+                    <XIcon size={14} aria-hidden='true' />
+                  </button>
+                </div>
+              )
+            })}
+            {/* Avoid having the "Search" Icon */}
+            <CommandPrimitive.Input
+              {...inputProps}
+              ref={inputRef}
+              value={inputValue}
+              disabled={disabled}
+              onValueChange={value => {
+                setInputValue(value)
+                inputProps?.onValueChange?.(value)
+              }}
+              onBlur={event => {
+                if (!onScrollbar) {
+                  setOpen(false)
+                }
+
+                inputProps?.onBlur?.(event)
+              }}
+              onFocus={event => {
+                setOpen(true)
+
+                if (triggerSearchOnFocus) {
+                  onSearch?.(debouncedSearchTerm)
+                }
+
+                inputProps?.onFocus?.(event)
+              }}
+              placeholder={hidePlaceholderWhenSelected && selected.length !== 0 ? '' : placeholder}
+              className={cn(
+                'placeholder:text-muted-foreground/70 flex-1 bg-transparent outline-hidden disabled:cursor-not-allowed',
+                {
+                  'w-full': hidePlaceholderWhenSelected,
+                  'px-3 py-2': selected.length === 0,
+                  'ml-1': selected.length !== 0
+                },
+                inputProps?.className
+              )}
+            />
+            <button
+              type='button'
+              onClick={() => {
+                setSelected(selected.filter(s => s.fixed))
+                onChange?.(selected.filter(s => s.fixed))
+              }}
+              className={cn(
+                'text-muted-foreground/80 hover:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 absolute top-0 right-0 flex size-9 items-center justify-center rounded-md border border-transparent transition-[color,box-shadow] outline-none focus-visible:ring-[3px]',
+                (hideClearAllButton ||
+                  disabled ||
+                  selected.length < 1 ||
+                  selected.filter(s => s.fixed).length === selected.length) &&
+                'hidden'
+              )}
+              aria-label='Clear all'
+            >
+              <XIcon size={16} aria-hidden='true' />
+            </button>
+          </div>
+        </div>
+        <div
+          className={cn(
+            'border-input absolute z-10 w-full overflow-hidden rounded-md border',
+            dropdownPlacement === 'bottom'
+              ? 'top-full mt-1'
+              : 'bottom-full mb-1',
             'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
             !open && 'hidden'
           )}
@@ -552,7 +603,7 @@ const MultipleSelector = ({
         >
           {open && (
             <CommandList
-              className='bg-popover text-popover-foreground shadow-lg outline-hidden'
+              className='bg-popover text-popover-foreground shadow-lg outline-hidden max-h-[170px] overflow-auto'
               onMouseLeave={() => {
                 setOnScrollbar(false)
               }}
@@ -571,7 +622,7 @@ const MultipleSelector = ({
                   {CreatableItem()}
                   {!selectFirstItem && <CommandItem value='-' className='hidden' />}
                   {Object.entries(selectables).map(([key, dropdowns]) => (
-                    <CommandGroup key={key} heading={key} className='h-full overflow-auto'>
+                    <CommandGroup key={key} heading={key}>
                       <>
                         {dropdowns.map(option => {
                           return (
