@@ -300,7 +300,7 @@ const MultipleSelector = ({
 
       const spaceBelow = containerBottom - inputRect.bottom
       const spaceAbove = inputRect.top - containerTop
-      const requiredHeight = 170
+      const requiredHeight = 200
 
       if (spaceBelow < requiredHeight && spaceAbove > spaceBelow) {
         setDropdownPlacement('top')
@@ -592,10 +592,8 @@ const MultipleSelector = ({
         </div>
         <div
           className={cn(
-            'border-input absolute z-10 w-full overflow-hidden rounded-md border',
-            dropdownPlacement === 'bottom'
-              ? 'top-full mt-1'
-              : 'bottom-full mb-1',
+            'border-input absolute z-50 w-full overflow-hidden rounded-md border shadow-lg',
+            dropdownPlacement === 'bottom' ? 'top-full mt-2' : 'bottom-full mb-2',
             'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
             !open && 'hidden'
           )}
@@ -603,7 +601,7 @@ const MultipleSelector = ({
         >
           {open && (
             <CommandList
-              className='bg-popover text-popover-foreground shadow-lg outline-hidden max-h-[170px] overflow-auto'
+              className='bg-popover text-popover-foreground outline-hidden max-h-[200px] overflow-auto'
               onMouseLeave={() => {
                 setOnScrollbar(false)
               }}

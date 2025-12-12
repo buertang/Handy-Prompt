@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type Prompt, type Category } from '@/lib/db'
 import {
@@ -38,6 +38,31 @@ export default function ContentManager() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [sortOption, setSortOption] = useState<'title' | 'createTime' | 'lastModified' | 'category'>('createTime')
   const [columns, setColumns] = useState(3)
+  const [maxAvailableColumns, setMaxAvailableColumns] = useState(5)
+
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth
+      if (width >= 1536) setMaxAvailableColumns(5) // 2xl
+      else if (width >= 1280) setMaxAvailableColumns(4) // xl
+      else if (width >= 1024) setMaxAvailableColumns(3) // lg
+      else if (width >= 640) setMaxAvailableColumns(2) // sm
+      else setMaxAvailableColumns(1)
+    }
+
+    // Initial check
+    handleResize()
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  // Auto-adjust columns if window shrinks
+  useEffect(() => {
+    if (columns > maxAvailableColumns) {
+      setColumns(maxAvailableColumns)
+    }
+  }, [maxAvailableColumns, columns])
 
   // DB Queries
   const prompts = useLiveQuery(() => db.prompts.toArray()) || []
@@ -228,21 +253,23 @@ export default function ContentManager() {
 
         <div className='flex flex-wrap items-center gap-2'>
           {/* Column Selector */}
-          <div className="flex items-center border rounded-md p-1 bg-background mr-2">
-            {[1, 2, 3, 4, 5].map(col => (
-              <button
-                key={col}
-                onClick={() => setColumns(col)}
-                className={cn(
-                  "px-2 py-1 text-xs rounded transition-colors hover:bg-muted",
-                  columns === col && "bg-primary text-primary-foreground hover:bg-primary/90"
-                )}
-                title={`${col}栏视图`}
-              >
-                {col}
-              </button>
-            ))}
-          </div>
+          {maxAvailableColumns > 1 && (
+            <div className="flex items-center border rounded-md p-1 bg-background mr-2">
+              {Array.from({ length: maxAvailableColumns }, (_, i) => i + 1).map(col => (
+                <button
+                  key={col}
+                  onClick={() => setColumns(col)}
+                  className={cn(
+                    "px-2 py-1 text-xs rounded transition-colors hover:bg-muted",
+                    columns === col && "bg-primary text-primary-foreground hover:bg-primary/90"
+                  )}
+                  title={`${col}栏视图`}
+                >
+                  {col}
+                </button>
+              ))}
+            </div>
+          )}
 
           <Button variant='outline' size='sm'>
             <Upload className='mr-2 h-4 w-4' />
