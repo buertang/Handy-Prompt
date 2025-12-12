@@ -42,11 +42,13 @@ import {
 
 import LogoSvg from '@/assets/logo.svg'
 import Facebook from '@/assets/facebook'
-import Github  from '@/assets/github'
+import Github from '@/assets/github'
 import X from '@/assets/x'
 import Instagram from '@/assets/instagram'
 import LanguageDropdown from '@/components/shadcn-studio/blocks/dropdown-language'
 import { ThemeToggle } from '@/components/shadcn-studio/blocks/theme-toggle'
+import { useSettings } from '@/hooks/use-settings'
+import { useTheme } from '@/hooks/use-theme'
 
 import ContentManager from './pages/ContentManager'
 import CategoryManager from './pages/CategoryManager'
@@ -175,6 +177,12 @@ const SidebarGroupedMenuItems = ({
 const ApplicationShell = () => {
   const [breadcrumbItems, setBreadcrumbItems] = useState<string[]>(['提示词管理', '内容管理', '标签管理'])
 
+  const { appearance, updateAppearance } = useSettings()
+  useTheme({
+    theme: appearance.theme,
+    onThemeChange: (theme) => updateAppearance({ theme })
+  })
+
   const handleMenuClick = (label: string, subLabel?: string) => {
     if (subLabel) {
       setBreadcrumbItems([label, subLabel])
@@ -224,7 +232,7 @@ const ApplicationShell = () => {
                 <Facebook />
               </a>
               <a href='#'>
-                <Instagram  />
+                <Instagram />
               </a>
               <a href='#'>
                 <Github />

@@ -8,9 +8,9 @@ import {
   Copy,
   Pencil,
   Trash2,
-  LayoutGrid,
   Rows3,
   Clock,
+  Calendar,
   ArrowUp
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -26,18 +26,7 @@ import {
   DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
-
-// Mock Data Types
-type Prompt = {
-  id: string
-  title: string
-  tags: string[]
-  content: string
-  description?: string
-  lastModified: string
-  enabled: boolean
-  category: string
-}
+import { PromptDialog, type Prompt } from '@/components/prompt-dialog'
 
 // Mock Data
 const mockPrompts: Prompt[] = [
@@ -47,6 +36,7 @@ const mockPrompts: Prompt[] = [
     tags: ['画图', '吉卜力'],
     content: '将图片转换为吉卜力风格...',
     description: '将图片转换为吉卜力风格',
+    createTime: '2024-03-01',
     lastModified: '无修改时间',
     enabled: true,
     category: '风格化'
@@ -57,6 +47,7 @@ const mockPrompts: Prompt[] = [
     tags: ['编程'],
     content: '请解释以下代码的功能和工作原理：\n```\n...\n```',
     description: '请解释以下代码的功能和工作原理',
+    createTime: '2024-03-05',
     lastModified: '无修改时间',
     enabled: true,
     category: '编程'
@@ -67,6 +58,7 @@ const mockPrompts: Prompt[] = [
     tags: ['编程', '变量'],
     content: '你现在是一个{{角色}}，有着{{年限}}年的开发经验，擅长{{技能}}。',
     description: '你现在是一个{{角色}}，有着{{年限}}年的开发经验，擅长{{技能}}。',
+    createTime: '2024-03-10',
     lastModified: '无修改时间',
     enabled: true,
     category: '编程'
@@ -77,6 +69,7 @@ const mockPrompts: Prompt[] = [
     tags: ['办公', '写作'],
     content: '请根据以下工作内容生成一份周报...',
     description: '快速生成高质量周报',
+    createTime: '2024-03-15',
     lastModified: '2024-03-20',
     enabled: false,
     category: '办公'
@@ -87,6 +80,7 @@ const mockPrompts: Prompt[] = [
     tags: ['语言', '教育'],
     content: '你是一位专业的英语口语教练...',
     description: '练习英语口语对话',
+    createTime: '2024-03-18',
     lastModified: '2024-03-21',
     enabled: true,
     category: '教育'
@@ -99,6 +93,10 @@ export default function ContentManager() {
   const [columns, setColumns] = useState(3)
   const [prompts, setPrompts] = useState(mockPrompts)
 
+  // Dialog State
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null)
+
   const filteredPrompts = useMemo(() => {
     return prompts.filter(prompt => {
       const matchesSearch =
@@ -110,7 +108,9 @@ export default function ContentManager() {
     })
   }, [searchTerm, selectedCategory, prompts])
 
-  const categories = ['all', ...Array.from(new Set(prompts.map(p => p.category)))]
+  // Get unique categories for filter
+  const allCategories = useMemo(() => Array.from(new Set(prompts.map(p => p.category))), [prompts])
+  const filterCategories = ['all', ...allCategories]
 
   const gridColsClass = {
     1: 'grid-cols-1',
@@ -128,6 +128,41 @@ export default function ContentManager() {
       '教育': 'bg-purple-500'
     }
     return colors[category] || 'bg-gray-400'
+  }
+
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text)
+    // You might want to show a toast here, but for now we'll just copy
+  }
+
+  const handleEdit = (prompt: Prompt) => {
+    setEditingPrompt(prompt)
+    setIsDialogOpen(true)
+  }
+
+  const handleAdd = () => {
+    setEditingPrompt(null)
+    setIsDialogOpen(true)
+  }
+
+  const handleSave = (prompt: Prompt) => {
+    if (editingPrompt) {
+      setPrompts(prev => prev.map(p => p.id === prompt.id ? prompt : p))
+    } else {
+      setPrompts(prev => [...prev, prompt])
+    }
+    setIsDialogOpen(false)
+    setEditingPrompt(null)
+  }
+
+  const handleDelete = (id: string) => {
+    if (confirm('确定要删除这个提示词吗？')) {
+      setPrompts(prev => prev.filter(p => p.id !== id))
+    }
+  }
+
+  const handleToggleEnabled = (id: string, enabled: boolean) => {
+    setPrompts(prev => prev.map(p => p.id === id ? { ...p, enabled } : p))
   }
 
   return (
@@ -164,11 +199,9 @@ export default function ContentManager() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => setSelectedCategory('all')}>所有分类</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              {categories.filter(c => c !== 'all').map(category => (
+              {filterCategories.map(category => (
                 <DropdownMenuItem key={category} onClick={() => setSelectedCategory(category)}>
-                  {category}
+                  {category === 'all' ? '所有分类' : category}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -205,7 +238,7 @@ export default function ContentManager() {
             <Download className='mr-2 h-4 w-4' />
             远程导入
           </Button>
-          <Button size='sm'>
+          <Button size='sm' onClick={handleAdd}>
             <Plus className='mr-2 h-4 w-4' />
             新增提示词
           </Button>
@@ -215,7 +248,7 @@ export default function ContentManager() {
       {/* Grid Content */}
       <div className={cn('grid gap-4', gridColsClass)}>
         {filteredPrompts.map(prompt => (
-          <Card key={prompt.id} className='flex flex-col shadow-sm hover:shadow-md transition-shadow'>
+          <Card key={prompt.id} className='flex flex-col shadow-sm hover:shadow-md transition-shadow group'>
             <CardHeader className='pb-2 pt-4 px-4'>
               <div className='flex justify-between items-start gap-2'>
                 <div className='flex flex-col gap-2 flex-1 min-w-0'>
@@ -244,17 +277,27 @@ export default function ContentManager() {
               <p className='text-sm text-muted-foreground line-clamp-1 mb-3'>
                 {prompt.description || prompt.content}
               </p>
-              <div className='flex items-center gap-1.5 text-xs text-muted-foreground'>
-                <Clock className="h-3.5 w-3.5" />
-                <span>最后修改时间: {prompt.lastModified}</span>
+              <div className='flex flex-col gap-1 text-xs text-muted-foreground'>
+                <div className='flex items-center gap-1.5'>
+                  <Calendar className="h-3.5 w-3.5" />
+                  <span>创建于: {prompt.createTime}</span>
+                </div>
+                <div className='flex items-center gap-1.5'>
+                  <Clock className="h-3.5 w-3.5" />
+                  <span>修改于: {prompt.lastModified}</span>
+                </div>
               </div>
             </CardContent>
             <CardFooter className='pt-2 pb-4 px-4 flex justify-between items-center mt-auto'>
               <div className="flex items-center gap-2">
-                <Switch checked={prompt.enabled} onCheckedChange={() => { }} className="scale-90 origin-left" />
+                <Switch
+                  checked={prompt.enabled}
+                  onCheckedChange={(checked) => handleToggleEnabled(prompt.id, checked)}
+                  className="scale-90 origin-left"
+                />
                 <span className="text-xs text-muted-foreground">{prompt.enabled ? '已启用' : '已禁用'}</span>
               </div>
-              <div className="flex gap-1.5">
+              <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                 {/* Responsive Actions Logic */}
                 {columns >= 3 ? (
                   <DropdownMenu>
@@ -265,25 +308,25 @@ export default function ContentManager() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem><ArrowUp className="mr-2 h-4 w-4" /> 置顶</DropdownMenuItem>
-                      <DropdownMenuItem><Copy className="mr-2 h-4 w-4" /> 复制</DropdownMenuItem>
-                      <DropdownMenuItem><Pencil className="mr-2 h-4 w-4" /> 编辑</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleCopy(prompt.content)}><Copy className="mr-2 h-4 w-4" /> 复制</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleEdit(prompt)}><Pencil className="mr-2 h-4 w-4" /> 编辑</DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> 删除</DropdownMenuItem>
+                      <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(prompt.id)}><Trash2 className="mr-2 h-4 w-4" /> 删除</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 ) : (
                   <>
                     <Button variant="outline" size="sm" className="h-8 px-2 text-xs flex items-center gap-1">
-                      <ArrowUp className="h-3.5 w-3.5" /> 置顶
+                      <ArrowUp className="h-3.5 w-3.5" />
                     </Button>
-                    <Button variant="outline" size="sm" className="h-8 px-2 text-xs flex items-center gap-1">
-                      <Copy className="h-3.5 w-3.5" /> 复制
+                    <Button variant="outline" size="sm" className="h-8 px-2 text-xs flex items-center gap-1" onClick={() => handleCopy(prompt.content)}>
+                      <Copy className="h-3.5 w-3.5" />
                     </Button>
-                    <Button variant="outline" size="sm" className="h-8 px-2 text-xs flex items-center gap-1">
-                      <Pencil className="h-3.5 w-3.5" /> 编辑
+                    <Button variant="outline" size="sm" className="h-8 px-2 text-xs flex items-center gap-1" onClick={() => handleEdit(prompt)}>
+                      <Pencil className="h-3.5 w-3.5" />
                     </Button>
-                    <Button variant="outline" size="sm" className="h-8 px-2 text-xs text-destructive hover:text-destructive flex items-center gap-1">
-                      <Trash2 className="h-3.5 w-3.5" /> 删除
+                    <Button variant="outline" size="sm" className="h-8 px-2 text-xs text-destructive hover:text-destructive flex items-center gap-1" onClick={() => handleDelete(prompt.id)}>
+                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </>
                 )}
@@ -297,6 +340,14 @@ export default function ContentManager() {
           没有找到匹配的提示词
         </div>
       )}
+
+      <PromptDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        prompt={editingPrompt}
+        categories={allCategories}
+        onSave={handleSave}
+      />
     </div>
   )
 }

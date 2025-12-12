@@ -18,13 +18,13 @@ interface UISettings {
 }
 
 // Define storage items
-const appearanceSettings = storage.defineItem<AppearanceSettings>('local:appearanceSettings', {
+const appearanceSettings = storage.defineItem<AppearanceSettings>('sync:appearanceSettings', {
   fallback: {
     theme: 'system'
   }
 })
 
-const systemSettings = storage.defineItem<SystemSettings>('local:systemSettings', {
+const systemSettings = storage.defineItem<SystemSettings>('sync:systemSettings', {
   fallback: {
     notifications: true,
     syncInterval: 15,
@@ -40,15 +40,15 @@ const uiSettings = storage.defineItem<UISettings>('local:uiSettings', {
 
 export function useSettings() {
   const [appearance, setAppearance] = useState<AppearanceSettings>({ theme: 'system' })
-  const [system, setSystem] = useState<SystemSettings>({ 
-    notifications: true, 
+  const [system, setSystem] = useState<SystemSettings>({
+    notifications: true,
     syncInterval: 15,
-    suppressShortcutWarning: false 
+    suppressShortcutWarning: false
   })
   const [ui, setUI] = useState<UISettings>({ activeTab: 'home' })
   const [loading, setLoading] = useState(true)
 
-  // Load settings
+  // Load settings and watch for changes
   useEffect(() => {
     const loadSettings = async () => {
       try {
@@ -57,7 +57,7 @@ export function useSettings() {
           systemSettings.getValue(),
           uiSettings.getValue()
         ])
-        
+
         setAppearance(appearanceData)
         setSystem(systemData)
         setUI(uiData)
@@ -69,6 +69,29 @@ export function useSettings() {
     }
 
     loadSettings()
+
+    // Watch for changes
+    const unwatchAppearance = appearanceSettings.watch((newValue) => {
+      setAppearance(newValue ?? { theme: 'system' })
+    })
+
+    const unwatchSystem = systemSettings.watch((newValue) => {
+      setSystem(newValue ?? {
+        notifications: true,
+        syncInterval: 15,
+        suppressShortcutWarning: false
+      })
+    })
+
+    const unwatchUI = uiSettings.watch((newValue) => {
+      setUI(newValue ?? { activeTab: 'home' })
+    })
+
+    return () => {
+      unwatchAppearance()
+      unwatchSystem()
+      unwatchUI()
+    }
   }, [])
 
   // Update appearance settings
@@ -112,12 +135,12 @@ export function useSettings() {
         systemSettings.removeValue(),
         uiSettings.removeValue()
       ])
-      
+
       // Reset to default values
       const defaultAppearance = { theme: 'system' as Theme }
       const defaultSystem = { notifications: true, syncInterval: 15, suppressShortcutWarning: false }
       const defaultUI = { activeTab: 'home' }
-      
+
       setAppearance(defaultAppearance)
       setSystem(defaultSystem)
       setUI(defaultUI)
