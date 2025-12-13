@@ -4,7 +4,8 @@ import {
   Check,
   Plus,
   Calendar,
-  Clock
+  Clock,
+  Pin
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -20,18 +21,7 @@ import {
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 
-// 分类数据类型
-export type Category = {
-  id: string
-  name: string
-  description: string
-  promptCount: number
-  enabled: boolean
-  isDefault: boolean
-  color: string
-  createTime?: string
-  lastModified?: string
-}
+import { type Category } from '@/lib/db'
 
 // 预定义颜色选项
 const COLOR_OPTIONS = [
@@ -56,10 +46,12 @@ const defaultCategory: Category = {
   id: '',
   name: '',
   description: '',
-  promptCount: 0,
   enabled: true,
   isDefault: false,
-  color: 'bg-indigo-500'
+  color: 'bg-indigo-500',
+  isPinned: false,
+  createTime: '',
+  lastModified: ''
 }
 
 export function CategoryDialog({
@@ -143,6 +135,20 @@ export function CategoryDialog({
 
           <div className="flex items-center gap-4">
             <Switch
+              id="pinned"
+              checked={formData.isPinned || false}
+              onCheckedChange={(checked) => setFormData({ ...formData, isPinned: checked })}
+            />
+            <div className="grid gap-0.5">
+              <Label htmlFor="pinned" className="flex items-center gap-1">
+                置顶分类 <Pin className="w-3 h-3" />
+              </Label>
+              <span className="text-xs text-muted-foreground">将此分类显示在列表顶部</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <Switch
               id="enabled"
               checked={formData.enabled}
               onCheckedChange={(checked) => setFormData({ ...formData, enabled: checked })}
@@ -154,24 +160,24 @@ export function CategoryDialog({
           </div>
         </div>
 
-        <DialogFooter>
-          <div className="flex flex-col items-end gap-3 w-full sm:w-auto">
+        <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-between sm:items-center gap-3">
+          <div className="flex flex-col gap-1 text-[10px] text-muted-foreground/60 justify-center">
             {isEditMode && formData.createTime && (
-              <div className="flex items-center gap-4 text-xs text-muted-foreground bg-muted/30 p-2 rounded border">
-                <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex items-center gap-1.5">
                   <Calendar className="w-3 h-3" />
                   <span>创建: {formData.createTime}</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <Clock className="w-3 h-3" />
                   <span>修改: {formData.lastModified || formData.createTime}</span>
                 </div>
               </div>
             )}
-            <div className="flex gap-2 justify-end w-full">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>取消</Button>
-              <Button onClick={handleSave}>{isEditMode ? '更新分类' : '创建分类'}</Button>
-            </div>
+          </div>
+          <div className="flex gap-2 justify-end w-full sm:w-auto">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>取消</Button>
+            <Button onClick={handleSave}>{isEditMode ? '更新分类' : '创建分类'}</Button>
           </div>
         </DialogFooter>
       </DialogContent>

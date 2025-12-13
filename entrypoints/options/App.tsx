@@ -261,14 +261,15 @@ const ApplicationShell = () => {
               <div className='flex items-center gap-4'>
                 <SidebarTrigger className='[&_svg]:!size-5' />
                 <Separator orientation='vertical' className='hidden !h-4 sm:block' />
-                <Breadcrumb>
+                <Breadcrumb className='hidden sm:block'>
                   <BreadcrumbList>
-                    <BreadcrumbItem>
+                    <BreadcrumbItem className='hidden md:block'>
                       <BreadcrumbLink href='#'>Home</BreadcrumbLink>
                     </BreadcrumbItem>
+                    <BreadcrumbSeparator className='hidden md:block' />
                     {breadcrumbItems.map((item, index) => (
                       <div key={item} className='flex items-center gap-1.5'>
-                        <BreadcrumbSeparator />
+                        {index > 0 && <BreadcrumbSeparator />}
                         <BreadcrumbItem>
                           {index === breadcrumbItems.length - 1 ? (
                             <BreadcrumbPage>{item}</BreadcrumbPage>

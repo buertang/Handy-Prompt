@@ -12,6 +12,7 @@ export interface Prompt {
   categoryId: string; // Foreign key to Category
   author?: string;
   source?: string;
+  isPinned?: boolean;
 }
 
 export interface Category {
@@ -23,6 +24,7 @@ export interface Category {
   color?: string;
   createTime: string;
   lastModified: string;
+  isPinned?: boolean;
 }
 
 export interface Tag {
@@ -30,6 +32,8 @@ export interface Tag {
   name: string;
   createTime: string;
   lastModified: string;
+  isPinned?: boolean;
+  enabled?: boolean;
 }
 
 const db = new Dexie('HandyPromptDB') as Dexie & {
@@ -40,9 +44,9 @@ const db = new Dexie('HandyPromptDB') as Dexie & {
 
 // Schema definition
 db.version(1).stores({
-  prompts: 'id, &title, categoryId, *tags, createTime, lastModified, author, source, enabled', // *tags for multi-valued index
-  categories: 'id, &name, createTime, lastModified',
-  tags: 'id, &name, createTime, lastModified'
+  prompts: 'id, &title, categoryId, *tags, createTime, lastModified, author, source, enabled, isPinned', // *tags for multi-valued index
+  categories: 'id, &name, createTime, lastModified, isPinned, enabled',
+  tags: 'id, &name, createTime, lastModified, isPinned, enabled'
 });
 
 // Seed data
@@ -57,7 +61,8 @@ db.on('populate', async () => {
     enabled: true,
     color: 'bg-indigo-500',
     createTime: now,
-    lastModified: now
+    lastModified: now,
+    isPinned: false
   };
   const styleCategory = {
     id: crypto.randomUUID(),
@@ -67,7 +72,8 @@ db.on('populate', async () => {
     enabled: true,
     color: 'bg-amber-500',
     createTime: now,
-    lastModified: now
+    lastModified: now,
+    isPinned: false
   };
   const codeCategory = {
     id: crypto.randomUUID(),
@@ -77,7 +83,8 @@ db.on('populate', async () => {
     enabled: true,
     color: 'bg-emerald-500',
     createTime: now,
-    lastModified: now
+    lastModified: now,
+    isPinned: false
   };
   const officeCategory = {
     id: crypto.randomUUID(),
@@ -87,7 +94,8 @@ db.on('populate', async () => {
     enabled: true,
     color: 'bg-blue-500',
     createTime: now,
-    lastModified: now
+    lastModified: now,
+    isPinned: false
   };
   const eduCategory = {
     id: crypto.randomUUID(),
@@ -97,7 +105,8 @@ db.on('populate', async () => {
     enabled: true,
     color: 'bg-purple-500',
     createTime: now,
-    lastModified: now
+    lastModified: now,
+    isPinned: false
   };
 
   await db.categories.bulkAdd([
@@ -121,7 +130,8 @@ db.on('populate', async () => {
       enabled: true,
       categoryId: officeCategory.id,
       author: 'System',
-      source: 'Built-in'
+      source: 'Built-in',
+      isPinned: false
     },
     {
       id: crypto.randomUUID(),
@@ -134,7 +144,8 @@ db.on('populate', async () => {
       enabled: true,
       categoryId: codeCategory.id,
       author: 'System',
-      source: 'Built-in'
+      source: 'Built-in',
+      isPinned: false
     },
     {
       id: crypto.randomUUID(),
@@ -147,7 +158,8 @@ db.on('populate', async () => {
       enabled: true,
       categoryId: officeCategory.id,
       author: 'System',
-      source: 'Built-in'
+      source: 'Built-in',
+      isPinned: false
     },
     {
       id: crypto.randomUUID(),
@@ -160,7 +172,8 @@ db.on('populate', async () => {
       enabled: true,
       categoryId: officeCategory.id,
       author: 'System',
-      source: 'Built-in'
+      source: 'Built-in',
+      isPinned: false
     },
     {
       id: crypto.randomUUID(),
@@ -173,7 +186,8 @@ db.on('populate', async () => {
       enabled: true,
       categoryId: eduCategory.id,
       author: 'System',
-      source: 'Built-in'
+      source: 'Built-in',
+      isPinned: false
     }
   ]);
 
@@ -183,7 +197,9 @@ db.on('populate', async () => {
     id: crypto.randomUUID(),
     name,
     createTime: now,
-    lastModified: now
+    lastModified: now,
+    isPinned: false,
+    enabled: true
   }));
   await db.tags.bulkAdd(tagsToAdd);
 });

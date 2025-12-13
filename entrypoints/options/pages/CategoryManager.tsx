@@ -8,6 +8,10 @@ import {
   Trash2,
   FileText,
   ArrowUpDown,
+  Pin,
+  PinOff,
+  Clock,
+  Calendar
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,17 +19,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
-import { CategoryDialog, type Category as DialogCategory } from '@/components/category-dialog'
+import { CategoryDialog } from '@/components/category-dialog'
+import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type Category } from '@/lib/db'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog'
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,7 +37,7 @@ export default function CategoryManager() {
   const [searchQuery, setSearchQuery] = useState('')
   const [sortOption, setSortOption] = useState<'name' | 'promptCount' | 'createTime' | 'lastModified'>('createTime')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [editingCategory, setEditingCategory] = useState<DialogCategory | null>(null)
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null)
 
   // Delete confirmation state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -65,7 +63,8 @@ export default function CategoryManager() {
       // Ensure optional fields have defaults for UI
       description: cat.description || '',
       enabled: cat.enabled ?? true,
-      color: cat.color || 'bg-gray-500'
+      color: cat.color || 'bg-gray-500',
+      isPinned: cat.isPinned || false
     }))
   }, [categories, prompts])
 
@@ -82,6 +81,9 @@ export default function CategoryManager() {
     )
 
     return filtered.sort((a, b) => {
+      // First sort by pinned status
+      if (a.isPinned !== b.isPinned) return (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0);
+
       switch (sortOption) {
         case 'name':
           return a.name.localeCompare(b.name, 'zh-CN')
@@ -97,7 +99,7 @@ export default function CategoryManager() {
     })
   }, [categoriesWithStats, searchQuery, sortOption])
 
-  const handleEdit = (category: DialogCategory) => {
+  const handleEdit = (category: Category) => {
     setEditingCategory(category)
     setIsDialogOpen(true)
   }
@@ -107,7 +109,11 @@ export default function CategoryManager() {
     setIsDialogOpen(true)
   }
 
-  const handleSave = async (categoryData: DialogCategory) => {
+  const handleTogglePinned = async (category: Category) => {
+    await db.categories.update(category.id, { isPinned: !category.isPinned })
+  }
+
+  const handleSave = async (categoryData: Category) => {
     try {
       const now = new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-');
 
@@ -126,6 +132,7 @@ export default function CategoryManager() {
         description: categoryData.description,
         enabled: categoryData.enabled,
         color: categoryData.color,
+        isPinned: categoryData.isPinned,
         createTime,
         lastModified: now
       }
@@ -199,9 +206,9 @@ export default function CategoryManager() {
     <div className="flex flex-col gap-6 h-full">
       {/* Header */}
       <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
           <h1 className="text-2xl font-bold">分类管理</h1>
-          <div className="flex gap-2 text-sm">
+          <div className="flex flex-wrap gap-2 text-sm">
             <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">总计 {totalCategories} 个分类</Badge>
             <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">启用 {enabledCategories} 个</Badge>
             <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">提示词总数 {totalPrompts}</Badge>
@@ -213,24 +220,26 @@ export default function CategoryManager() {
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between bg-card p-4 rounded-lg border shadow-sm">
-        <div className="flex gap-2 flex-1 w-full sm:w-auto">
-          <div className="relative flex-1 sm:max-w-xs">
+      <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center justify-between bg-card p-3 rounded-lg border shadow-sm">
+        <div className="flex gap-2 flex-1 w-full sm:w-auto overflow-x-auto no-scrollbar">
+          <div className="relative min-w-[160px] sm:w-[200px] lg:w-[240px]">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="搜索分类名称或描述..."
-              className="pl-8"
+              placeholder="搜索分类..."
+              className="pl-8 h-9"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
-                <ArrowUpDown className="h-4 w-4" />
-                排序
+              <Button variant="outline" size="sm" className="h-9 w-9 xl:w-[90px] p-0 xl:px-3 justify-center xl:justify-between shrink-0">
+                <span className="flex items-center justify-center">
+                  <ArrowUpDown className="h-4 w-4 opacity-50" />
+                  <span className="hidden xl:inline ml-1.5">排序</span>
+                </span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -249,17 +258,27 @@ export default function CategoryManager() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button variant="outline" size="sm">
-            <Upload className="mr-2 h-4 w-4" /> 导出
+          <Button variant="outline" size="sm" className="h-9 w-9 xl:w-auto p-0 xl:px-3 shrink-0">
+            <Upload className="h-4 w-4 xl:mr-1.5" />
+            <span className="hidden xl:inline text-xs">导出</span>
           </Button>
-          <Button variant="outline" size="sm">
-            <Download className="mr-2 h-4 w-4" /> 本地导入
-          </Button>
-          <Button variant="outline" size="sm">
-            <Download className="mr-2 h-4 w-4" /> 远程导入
-          </Button>
-          <Button size="sm" onClick={handleAdd}>
-            <Plus className="mr-2 h-4 w-4" /> 新增分类
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9 w-9 xl:w-auto p-0 xl:px-3 shrink-0">
+                <Download className="h-4 w-4 xl:mr-1.5" />
+                <span className="hidden xl:inline text-xs">导入</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem>本地导入</DropdownMenuItem>
+              <DropdownMenuItem>远程导入</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button size="sm" onClick={handleAdd} className="h-9 w-9 xl:w-auto p-0 xl:px-3 shrink-0">
+            <Plus className="h-4 w-4 xl:mr-1.5" />
+            <span className="hidden xl:inline text-xs">新建</span>
           </Button>
         </div>
       </div>
@@ -280,13 +299,22 @@ export default function CategoryManager() {
                     </Badge>
                   )}
                 </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn("h-6 w-6 -mt-1 -mr-1", category.isPinned ? "text-primary" : "text-muted-foreground transition-opacity")}
+                  onClick={() => handleTogglePinned(category)}
+                  title={category.isPinned ? "取消置顶" : "置顶"}
+                >
+                  {category.isPinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
+                </Button>
               </div>
             </CardHeader>
             <CardContent className="pb-3">
               <p className="text-sm text-muted-foreground line-clamp-2 h-10 mb-6 leading-relaxed">
                 {category.description || '暂无描述'}
               </p>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                 <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground bg-secondary/50 px-2.5 py-1.5 rounded-md">
                   <FileText className="w-3.5 h-3.5" />
                   <span>{category.promptCount} 个提示词</span>
@@ -297,11 +325,21 @@ export default function CategoryManager() {
                     onCheckedChange={() => { /* Toggle enabled in DB */
                       db.categories.update(category.id, { enabled: !category.enabled })
                     }}
-                    className="data-[state=checked]:bg-primary"
+                    className="data-[state=checked]:bg-primary scale-90 origin-right"
                   />
                   <span className="text-xs font-medium text-muted-foreground min-w-[36px]">
                     {category.enabled ? '已启用' : '已停用'}
                   </span>
+                </div>
+              </div>
+              <div className='flex flex-col gap-1 text-xs text-muted-foreground mb-3'>
+                <div className='flex items-center gap-1.5'>
+                  <Calendar className="h-3" />
+                  <span>创建: {category.createTime}</span>
+                </div>
+                <div className='flex items-center gap-1.5'>
+                  <Clock className="h-3" />
+                  <span>修改: {category.lastModified}</span>
                 </div>
               </div>
             </CardContent>
@@ -338,40 +376,30 @@ export default function CategoryManager() {
       />
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>删除分类: {categoryToDelete?.name}</DialogTitle>
-            <DialogDescription>
-              您正在删除一个分类，该分类下包含 {categoriesWithStats.find(c => c.id === categoryToDelete?.id)?.promptCount || 0} 个提示词。请选择如何处理这些提示词。
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="py-4">
-            <RadioGroup value={deleteOption} onValueChange={(v) => setDeleteOption(v as 'move' | 'delete')}>
-              <div className="flex items-center space-x-2 mb-4">
-                <RadioGroupItem value="move" id="move" />
-                <Label htmlFor="move" className="cursor-pointer">
-                  <span className="font-bold block">移动到默认分类 (推荐)</span>
-                  <span className="text-xs text-muted-foreground">将该分类下的所有提示词移动到"默认"分类中，保留数据。</span>
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="delete" id="delete" />
-                <Label htmlFor="delete" className="cursor-pointer">
-                  <span className="font-bold block text-destructive">删除所有提示词</span>
-                  <span className="text-xs text-muted-foreground">永久删除该分类下的所有提示词，无法恢复。</span>
-                </Label>
-              </div>
-            </RadioGroup>
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title={`删除分类: ${categoryToDelete?.name}`}
+        description={`您正在删除一个分类，该分类下包含 ${categoriesWithStats.find(c => c.id === categoryToDelete?.id)?.promptCount || 0} 个提示词。请选择如何处理这些提示词。`}
+        onConfirm={confirmDelete}
+      >
+        <RadioGroup value={deleteOption} onValueChange={(v) => setDeleteOption(v as 'move' | 'delete')}>
+          <div className="flex items-center space-x-2 mb-4">
+            <RadioGroupItem value="move" id="move" />
+            <Label htmlFor="move" className="cursor-pointer">
+              <span className="font-bold block">移动到默认分类 (推荐)</span>
+              <span className="text-xs text-muted-foreground">将该分类下的所有提示词移动到"默认"分类中，保留数据。</span>
+            </Label>
           </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>取消</Button>
-            <Button variant="destructive" onClick={confirmDelete}>确认删除</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="delete" id="delete" />
+            <Label htmlFor="delete" className="cursor-pointer">
+              <span className="font-bold block text-destructive">删除所有提示词</span>
+              <span className="text-xs text-muted-foreground">永久删除该分类下的所有提示词，无法恢复。</span>
+            </Label>
+          </div>
+        </RadioGroup>
+      </DeleteConfirmDialog>
     </div>
   )
 }
