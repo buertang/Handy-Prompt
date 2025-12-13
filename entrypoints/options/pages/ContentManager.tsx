@@ -1,6 +1,12 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db, type Prompt, type Category } from '@/lib/db'
+import { db, type Prompt, type Category, type Tag } from '@/lib/db'
+import { toast } from 'sonner'
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { exportToJson } from '@/lib/export'
+import { importFromUrl, handleFileSelect } from '@/lib/import'
+import { ImportUrlDialog } from '@/components/import-url-dialog'
 import {
   Search,
   Plus,
@@ -18,7 +24,8 @@ import {
   User,
   Globe,
   Pin,
-  PinOff
+  PinOff,
+  AlertCircle
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -35,6 +42,12 @@ import {
 import { cn } from '@/lib/utils'
 import { PromptDialog } from '@/components/prompt-dialog'
 import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 export default function ContentManager() {
   const [searchTerm, setSearchTerm] = useState('')
@@ -115,13 +128,77 @@ export default function ContentManager() {
     }, {} as Record<string, Category>)
   }, [categories])
 
-  // Dialog State
+  const tagMap = useMemo(() => {
+    return tags.reduce((acc, tag) => {
+      acc[tag.name] = tag
+      return acc
+    }, {} as Record<string, Tag>)
+  }, [tags])
+
+  // Bulk Actions
+  const handleBulkEnable = async () => {
+    let updatedCount = 0
+    await db.transaction('rw', db.prompts, async () => {
+      for (const prompt of prompts) {
+        if (!prompt.enabled) {
+          // Check conditions
+          const category = categoryMap[prompt.categoryId]
+          const categoryDisabled = category && category.enabled === false
+
+          let tagsDisabled = false
+          if (prompt.tags && prompt.tags.length > 0) {
+            tagsDisabled = prompt.tags.some(tagName => {
+              const tag = tagMap[tagName]
+              return tag && tag.enabled === false
+            })
+          }
+
+          if (!categoryDisabled && !tagsDisabled) {
+            await db.prompts.update(prompt.id, { enabled: true })
+            updatedCount++
+          }
+        }
+      }
+    })
+    toast.success(`已启用 ${updatedCount} 个提示词`)
+  }
+
+  const handleBulkDisable = async () => {
+    const count = await db.prompts.filter(p => p.enabled === true).modify({ enabled: false })
+    toast.success(`已停用 ${count} 个提示词`)
+  }
+
+  // Helper to check effective enabled status
+  const getEffectiveStatus = (prompt: Prompt) => {
+    // 1. Check prompt itself
+    if (!prompt.enabled) return { enabled: false, reason: 'self' }
+
+    // 2. Check category
+    const category = categoryMap[prompt.categoryId]
+    if (category && category.enabled === false) return { enabled: false, reason: 'category' }
+
+    // 3. Check tags
+    // Rule: If ANY tag is disabled, the prompt is effectively disabled
+    if (prompt.tags && prompt.tags.length > 0) {
+      const hasDisabledTag = prompt.tags.some(tagName => {
+        const tag = tagMap[tagName]
+        return tag && tag.enabled === false
+      })
+      if (hasDisabledTag) return { enabled: false, reason: 'tag' }
+    }
+
+    return { enabled: true }
+  }
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null)
 
   // Delete confirmation state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [promptToDelete, setPromptToDelete] = useState<string | null>(null)
+
+  // Import Dialog State
+  const [importUrlDialogOpen, setImportUrlDialogOpen] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const filteredPrompts = useMemo(() => {
     const filtered = prompts.filter(prompt => {
@@ -170,19 +247,14 @@ export default function ContentManager() {
     5: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
   }[columns]
 
-  const getCategoryColor = (categoryName: string) => {
-    const colors: Record<string, string> = {
-      '风格化': 'bg-orange-400',
-      '编程': 'bg-green-500',
-      '办公': 'bg-blue-500',
-      '教育': 'bg-purple-500'
-    }
-    return colors[categoryName] || 'bg-gray-400'
+  const getCategoryColor = (categoryId: string) => {
+    const category = categories.find(c => c.id === categoryId)
+    return category?.color || 'bg-slate-400'
   }
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text)
-    // You might want to show a toast here, but for now we'll just copy
+    toast.success('已复制到剪贴板')
   }
 
   const handleEdit = (prompt: Prompt) => {
@@ -214,8 +286,10 @@ export default function ContentManager() {
 
     if (editingPrompt) {
       await db.prompts.put(prompt)
+      toast.success('提示词更新成功')
     } else {
       await db.prompts.add(prompt)
+      toast.success('提示词创建成功')
     }
     setIsDialogOpen(false)
     setEditingPrompt(null)
@@ -229,17 +303,50 @@ export default function ContentManager() {
   const confirmDelete = async () => {
     if (promptToDelete) {
       await db.prompts.delete(promptToDelete)
+      toast.success('提示词删除成功')
       setDeleteDialogOpen(false)
       setPromptToDelete(null)
     }
   }
 
   const handleToggleEnabled = async (id: string, enabled: boolean) => {
+    // 如果是开启操作，需要检查分类和标签的状态
+    if (enabled) {
+      const prompt = prompts.find(p => p.id === id)
+      if (!prompt) return
+
+      const category = categoryMap[prompt.categoryId]
+      const categoryDisabled = category && category.enabled === false
+
+      let tagsDisabled = false
+      if (prompt.tags && prompt.tags.length > 0) {
+        tagsDisabled = prompt.tags.some(tagName => {
+          const tag = tagMap[tagName]
+          return tag && tag.enabled === false
+        })
+      }
+
+      if (categoryDisabled && tagsDisabled) {
+        toast.error('当前提示词的分类和标签未启用')
+        return
+      }
+      if (categoryDisabled) {
+        toast.error('当前提示词分类未启用')
+        return
+      }
+      if (tagsDisabled) {
+        toast.error('当前提示词标签未启用')
+        return
+      }
+    }
+
     await db.prompts.update(id, { enabled })
+    toast.success(enabled ? '已启用' : '已停用')
   }
 
   const handleTogglePinned = async (prompt: Prompt) => {
     await db.prompts.update(prompt.id, { isPinned: !prompt.isPinned })
+    toast.success(prompt.isPinned ? '已取消置顶' : '已置顶')
   }
 
 
@@ -250,8 +357,10 @@ export default function ContentManager() {
         <div className='flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4'>
           <h1 className='text-2xl font-bold'>提示词库</h1>
           <div className='flex flex-wrap gap-2 text-sm'>
-            <Badge variant="outline" className='bg-green-50 text-green-700 border-green-200'>总计 {prompts.length} 个提示词</Badge>
-            <Badge variant="outline" className='bg-blue-50 text-blue-700 border-blue-200'>启用 {prompts.filter(p => p.enabled).length} 个</Badge>
+            <Button variant="outline" size="sm" className="h-6 text-xs" onClick={handleBulkEnable}>一键启用</Button>
+            <Button variant="outline" size="sm" className="h-6 text-xs" onClick={handleBulkDisable}>一键停用</Button>
+            <Badge variant="outline" className='bg-slate-100 text-slate-700 border-slate-200'>总计 {prompts.length} 个提示词</Badge>
+            <Badge variant="outline" className='bg-[#AFC2DB]/20 text-[#6B85A8] border-[#AFC2DB]/40'>启用 {prompts.filter(p => p.enabled).length} 个</Badge>
           </div>
         </div>
         <p className='text-muted-foreground text-sm'>在网页输入框中通过指令快速插入预设的 Prompt 内容。</p>
@@ -333,23 +442,34 @@ export default function ContentManager() {
             </div>
           )}
 
-          <Button variant='outline' size='sm' className="h-9 w-9 xl:w-auto p-0 xl:px-3 shrink-0">
-            <Upload className='h-4 w-4 xl:mr-1.5' />
-            <span className="hidden xl:inline text-xs">导出</span>
-          </Button>
-
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            accept=".json"
+            onChange={(e) => handleFileSelect(e, 'library')}
+          />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant='outline' size='sm' className="h-9 w-9 xl:w-auto p-0 xl:px-3 shrink-0">
-                <Download className='h-4 w-4 xl:mr-1.5' />
+              <Button variant="outline" size="sm" className="h-9 w-9 xl:w-auto p-0 xl:px-3 shrink-0">
+                <Download className="h-4 w-4 xl:mr-1.5" />
                 <span className="hidden xl:inline text-xs">导入</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem>本地导入</DropdownMenuItem>
-              <DropdownMenuItem>远程导入</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+                本地导入
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setImportUrlDialogOpen(true)}>
+                URL 导入
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <Button variant="outline" size="sm" className="h-9 w-9 xl:w-auto p-0 xl:px-3 shrink-0" onClick={() => exportToJson(prompts, 'library')}>
+            <Upload className="h-4 w-4 xl:mr-1.5" />
+            <span className="hidden xl:inline text-xs">导出</span>
+          </Button>
 
           <Button size='sm' onClick={handleAdd} className="h-9 w-9 xl:w-auto p-0 xl:px-3 shrink-0">
             <Plus className='h-4 w-4 xl:mr-1.5' />
@@ -370,14 +490,14 @@ export default function ContentManager() {
                   </CardTitle>
                   <div className='shrink-0'>
                     <div className='flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-md border'>
-                      <span className={cn('w-2 h-2 rounded-full', getCategoryColor(categoryMap[prompt.categoryId]?.name || '默认'))}></span>
+                      <span className={cn('w-2 h-2 rounded-full', getCategoryColor(prompt.categoryId))}></span>
                       {categoryMap[prompt.categoryId]?.name || '未知'}
                     </div>
                   </div>
                 </div>
                 <div className='flex flex-wrap gap-1'>
                   {prompt.tags.map(tag => (
-                    <Badge key={tag} variant='secondary' className='text-xs font-normal text-blue-600 bg-blue-50 hover:bg-blue-100 px-1.5 py-0 whitespace-nowrap'>
+                    <Badge key={tag} variant='secondary' className='text-xs font-normal text-slate-600 bg-slate-100 hover:bg-slate-200 border-slate-200 px-1.5 py-0 whitespace-nowrap border'>
                       #{tag}
                     </Badge>
                   ))}
@@ -385,9 +505,24 @@ export default function ContentManager() {
               </div>
             </CardHeader>
             <CardContent className='flex-1 pb-2 px-4'>
-              <p className='text-sm text-muted-foreground line-clamp-1 mb-3'>
-                {prompt.description || prompt.content}
-              </p>
+              <HoverCard openDelay={200} closeDelay={100}>
+                <HoverCardTrigger asChild>
+                  <p
+                    className='text-sm text-muted-foreground line-clamp-1 mb-3 cursor-help'
+                  >
+                    {prompt.description || prompt.content}
+                  </p>
+                </HoverCardTrigger>
+                <HoverCardContent className="w-80 p-0 overflow-hidden">
+                  <ScrollArea className="h-[200px] w-full">
+                    <div className="space-y-1 p-4">
+                      <p className="text-sm text-muted-foreground break-words break-all whitespace-pre-wrap">
+                        {prompt.description || prompt.content}
+                      </p>
+                    </div>
+                  </ScrollArea>
+                </HoverCardContent>
+              </HoverCard>
               <div className='flex flex-col gap-1 text-xs text-muted-foreground'>
                 <div className='flex items-center gap-1.5'>
                   <Calendar className="h-3.5 w-3.5" />
@@ -440,7 +575,7 @@ export default function ContentManager() {
                       <DropdownMenuItem onClick={() => handleCopy(prompt.content)}><Copy className="mr-2 h-4 w-4" /> 复制</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleEdit(prompt)}><Pencil className="mr-2 h-4 w-4" /> 编辑</DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(prompt.id)}><Trash2 className="mr-2 h-4 w-4" /> 删除</DropdownMenuItem>
+                      <DropdownMenuItem className="text-muted-foreground hover:text-destructive focus:text-destructive hover:bg-destructive/10 focus:bg-destructive/10" onClick={() => handleDelete(prompt.id)}><Trash2 className="mr-2 h-4 w-4" /> 删除</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 ) : (
@@ -448,7 +583,7 @@ export default function ContentManager() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className={cn("h-8 px-2 text-xs flex items-center gap-1", prompt.isPinned && "text-primary border-primary bg-primary/10")}
+                      className={cn("h-8 px-2 text-xs flex items-center gap-1", prompt.isPinned && "text-primary border-transparent bg-primary/10")}
                       onClick={() => handleTogglePinned(prompt)}
                       title={prompt.isPinned ? "取消置顶" : "置顶"}
                     >
@@ -469,7 +604,7 @@ export default function ContentManager() {
                         <span>编辑</span>
                       )}
                     </Button>
-                    <Button variant="outline" size="sm" className="h-8 px-2 text-xs text-destructive hover:text-destructive flex items-center gap-1" onClick={() => handleDelete(prompt.id)} title="删除">
+                    <Button variant="outline" size="sm" className="h-8 px-2 text-xs text-muted-foreground/70 hover:text-destructive hover:bg-destructive/10 flex items-center gap-1" onClick={() => handleDelete(prompt.id)} title="删除">
                       <Trash2 className="h-3.5 w-3.5" />
                       {layoutMode === 'full' && (
                         <span>删除</span>
@@ -487,6 +622,12 @@ export default function ContentManager() {
           没有找到匹配的提示词
         </div>
       )}
+
+      <ImportUrlDialog
+        open={importUrlDialogOpen}
+        onOpenChange={setImportUrlDialogOpen}
+        onImport={(url) => importFromUrl(url, 'library')}
+      />
 
       <PromptDialog
         open={isDialogOpen}

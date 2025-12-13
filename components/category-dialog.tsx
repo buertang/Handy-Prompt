@@ -23,16 +23,16 @@ import { cn } from '@/lib/utils'
 
 import { type Category } from '@/lib/db'
 
-// 预定义颜色选项
+// 预定义颜色选项 (Soft & Clear)
 const COLOR_OPTIONS = [
-  'bg-indigo-500',
-  'bg-emerald-500',
-  'bg-amber-500',
-  'bg-rose-500',
-  'bg-purple-500',
-  'bg-pink-500',
-  'bg-cyan-500',
-  'bg-orange-500'
+  'bg-slate-400',   // Default
+  'bg-orange-400',  // Style
+  'bg-emerald-400', // Code
+  'bg-blue-400',    // Office
+  'bg-violet-400',  // Edu
+  'bg-rose-400',    // Pink
+  'bg-amber-400',   // Yellow
+  'bg-cyan-400'     // Cyan
 ]
 
 interface CategoryDialogProps {
@@ -48,7 +48,7 @@ const defaultCategory: Category = {
   description: '',
   enabled: true,
   isDefault: false,
-  color: 'bg-indigo-500',
+  color: 'bg-blue-400',
   isPinned: false,
   createTime: '',
   lastModified: ''
@@ -79,6 +79,7 @@ export function CategoryDialog({
   }
 
   const isEditMode = !!category && category.id !== ''
+  const isValid = formData.name.trim().length > 0
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -161,14 +162,14 @@ export function CategoryDialog({
         </div>
 
         <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-between sm:items-center gap-3">
-          <div className="flex flex-col gap-1 text-[10px] text-muted-foreground/60 justify-center">
+          <div className="flex flex-col gap-1 text-[10px] text-muted-foreground/60 w-full sm:w-auto items-end sm:items-start">
             {isEditMode && formData.createTime && (
-              <div className="flex flex-wrap items-center gap-4">
-                <div className="flex items-center gap-1.5">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-right sm:text-left">
+                <div className="flex items-center gap-1.5 justify-end sm:justify-start">
                   <Calendar className="w-3 h-3" />
                   <span>创建: {formData.createTime}</span>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 justify-end sm:justify-start">
                   <Clock className="w-3 h-3" />
                   <span>修改: {formData.lastModified || formData.createTime}</span>
                 </div>
@@ -177,7 +178,7 @@ export function CategoryDialog({
           </div>
           <div className="flex gap-2 justify-end w-full sm:w-auto">
             <Button variant="outline" onClick={() => onOpenChange(false)}>取消</Button>
-            <Button onClick={handleSave}>{isEditMode ? '更新分类' : '创建分类'}</Button>
+            <Button onClick={handleSave} disabled={!isValid}>{isEditMode ? '更新分类' : '创建分类'}</Button>
           </div>
         </DialogFooter>
       </DialogContent>

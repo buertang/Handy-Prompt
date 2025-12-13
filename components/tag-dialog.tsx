@@ -59,6 +59,7 @@ export function TagDialog({
   }
 
   const isEditMode = !!tag && tag.id !== ''
+  const isValid = formData.name.trim().length > 0
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -111,14 +112,14 @@ export function TagDialog({
         </div>
 
         <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-between sm:items-center gap-3">
-          <div className="flex flex-col gap-1 text-[10px] text-muted-foreground/60 justify-center">
+          <div className="flex flex-col gap-1 text-[10px] text-muted-foreground/60 w-full sm:w-auto items-end sm:items-start">
             {isEditMode && formData.createTime && (
-              <div className="flex flex-wrap items-center gap-4">
-                <div className="flex items-center gap-1.5">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-right sm:text-left">
+                <div className="flex items-center gap-1.5 justify-end sm:justify-start">
                   <Calendar className="w-3 h-3" />
                   <span>创建: {formData.createTime}</span>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 justify-end sm:justify-start">
                   <Clock className="w-3 h-3" />
                   <span>修改: {formData.lastModified || formData.createTime}</span>
                 </div>
@@ -127,7 +128,7 @@ export function TagDialog({
           </div>
           <div className="flex gap-2 justify-end w-full sm:w-auto">
             <Button variant="outline" onClick={() => onOpenChange(false)}>取消</Button>
-            <Button onClick={handleSave}>{isEditMode ? '更新标签' : '创建标签'}</Button>
+            <Button onClick={handleSave} disabled={!isValid}>{isEditMode ? '更新标签' : '创建标签'}</Button>
           </div>
         </DialogFooter>
       </DialogContent>

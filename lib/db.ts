@@ -34,6 +34,7 @@ export interface Tag {
   lastModified: string;
   isPinned?: boolean;
   enabled?: boolean;
+  isDefault?: boolean;
 }
 
 const db = new Dexie('HandyPromptDB') as Dexie & {
@@ -59,10 +60,10 @@ db.on('populate', async () => {
     isDefault: true,
     description: '系统默认分类，用于存放未分类的提示词',
     enabled: true,
-    color: 'bg-indigo-500',
+    color: 'bg-slate-400', // Slate (Default)
     createTime: now,
     lastModified: now,
-    isPinned: false
+    isPinned: true
   };
   const styleCategory = {
     id: crypto.randomUUID(),
@@ -70,7 +71,7 @@ db.on('populate', async () => {
     isDefault: false,
     description: '绘画相关的提示词，包含Midjourney、Stable Diffusion等',
     enabled: true,
-    color: 'bg-amber-500',
+    color: 'bg-orange-400', // Orange (Style)
     createTime: now,
     lastModified: now,
     isPinned: false
@@ -81,7 +82,7 @@ db.on('populate', async () => {
     isDefault: false,
     description: '编程、代码相关的提示词，包含各种语言和框架的助手',
     enabled: true,
-    color: 'bg-emerald-500',
+    color: 'bg-emerald-400', // Emerald (Code)
     createTime: now,
     lastModified: now,
     isPinned: false
@@ -92,7 +93,7 @@ db.on('populate', async () => {
     isDefault: false,
     description: '办公效率工具',
     enabled: true,
-    color: 'bg-blue-500',
+    color: 'bg-blue-400', // Blue (Office)
     createTime: now,
     lastModified: now,
     isPinned: false
@@ -103,7 +104,7 @@ db.on('populate', async () => {
     isDefault: false,
     description: '教育与学习助手',
     enabled: true,
-    color: 'bg-purple-500',
+    color: 'bg-violet-400', // Violet (Edu)
     createTime: now,
     lastModified: now,
     isPinned: false
@@ -192,6 +193,16 @@ db.on('populate', async () => {
   ]);
 
   // Initial Tags (optional, can be inferred, but good to have a list)
+  const defaultTag = {
+    id: crypto.randomUUID(),
+    name: '默认',
+    createTime: now,
+    lastModified: now,
+    isPinned: true,
+    enabled: true,
+    isDefault: true
+  };
+
   const uniqueTags = new Set(['写作', '翻译', '英语', '编程', '优化', '办公', '总结', '创意', '灵感', '学习', '解释']);
   const tagsToAdd = Array.from(uniqueTags).map(name => ({
     id: crypto.randomUUID(),
@@ -199,9 +210,11 @@ db.on('populate', async () => {
     createTime: now,
     lastModified: now,
     isPinned: false,
-    enabled: true
+    enabled: true,
+    isDefault: false
   }));
-  await db.tags.bulkAdd(tagsToAdd);
+
+  await db.tags.bulkAdd([defaultTag, ...tagsToAdd]);
 });
 
 export { db };

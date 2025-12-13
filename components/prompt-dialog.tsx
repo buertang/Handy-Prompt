@@ -116,6 +116,7 @@ export function PromptDialog({
   }
 
   const isEditMode = !!prompt && prompt.id !== ''
+  const isValid = formData.title.trim().length > 0 && formData.content.trim().length > 0 && formData.categoryId !== ''
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -254,14 +255,14 @@ export function PromptDialog({
         </div>
 
         <DialogFooter className="px-6 py-4 border-t shrink-0 flex-col-reverse sm:flex-row sm:justify-between sm:items-center gap-3">
-          <div className="flex flex-col gap-1 text-[10px] text-muted-foreground/60 justify-center">
+          <div className="flex flex-col gap-1 text-[10px] text-muted-foreground/60 w-full sm:w-auto items-end sm:items-start">
             {isEditMode && (
-              <div className="flex flex-wrap items-center gap-4">
-                <div className="flex items-center gap-1.5">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-right sm:text-left">
+                <div className="flex items-center gap-1.5 justify-end sm:justify-start">
                   <Calendar className="w-3 h-3" />
                   <span>创建: {formData.createTime}</span>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 justify-end sm:justify-start">
                   <Clock className="w-3 h-3" />
                   <span>修改: {formData.lastModified}</span>
                 </div>
@@ -270,7 +271,7 @@ export function PromptDialog({
           </div>
           <div className="flex gap-2 justify-end w-full sm:w-auto">
             <Button variant="outline" onClick={() => onOpenChange(false)}>取消</Button>
-            <Button onClick={handleSave}>保存</Button>
+            <Button onClick={handleSave} disabled={!isValid}>保存</Button>
           </div>
         </DialogFooter>
       </DialogContent>

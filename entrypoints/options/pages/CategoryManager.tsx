@@ -19,10 +19,17 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 import { CategoryDialog } from '@/components/category-dialog'
 import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db, type Category } from '@/lib/db'
+import { db, type Category, type Tag } from '@/lib/db'
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { exportToJson } from '@/lib/export'
+import { importFromUrl, handleFileSelect } from '@/lib/import'
+import { ImportUrlDialog } from '@/components/import-url-dialog'
+import { useRef } from 'react'
 
 import {
   DropdownMenu,
@@ -44,6 +51,10 @@ export default function CategoryManager() {
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null)
   const [deleteOption, setDeleteOption] = useState<'move' | 'delete'>('move')
 
+  // Import Dialog State
+  const [importUrlDialogOpen, setImportUrlDialogOpen] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   // Live Query for real-time data
   const categories = useLiveQuery(() => db.categories.toArray()) || []
   const prompts = useLiveQuery(() => db.prompts.toArray()) || []
@@ -64,7 +75,7 @@ export default function CategoryManager() {
       description: cat.description || '',
       enabled: cat.enabled ?? true,
       color: cat.color || 'bg-gray-500',
-      isPinned: cat.isPinned || false
+      isPinned: cat.isDefault ? true : (cat.isPinned || false)
     }))
   }, [categories, prompts])
 
@@ -81,6 +92,10 @@ export default function CategoryManager() {
     )
 
     return filtered.sort((a, b) => {
+      // 0. Default category always on top
+      if (a.isDefault && !b.isDefault) return -1;
+      if (!a.isDefault && b.isDefault) return 1;
+
       // First sort by pinned status
       if (a.isPinned !== b.isPinned) return (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0);
 
@@ -111,6 +126,100 @@ export default function CategoryManager() {
 
   const handleTogglePinned = async (category: Category) => {
     await db.categories.update(category.id, { isPinned: !category.isPinned })
+    toast.success(category.isPinned ? '已取消置顶' : '已置顶')
+  }
+
+  const handleToggleEnabled = async (category: Category) => {
+    if (category.isDefault) {
+      return
+    }
+    const newEnabled = !category.enabled
+
+    await db.transaction('rw', db.categories, db.prompts, db.tags, async () => {
+      // 1. Update category
+      await db.categories.update(category.id, { enabled: newEnabled })
+
+      if (!newEnabled) {
+        // 2. Disable all prompts in this category
+        await db.prompts.where('categoryId').equals(category.id).modify({ enabled: false })
+      } else {
+        // 3. Enable prompts in this category IF their tags are also enabled
+        const prompts = await db.prompts.where('categoryId').equals(category.id).toArray()
+        const allTags = await db.tags.toArray()
+        const tagMap = allTags.reduce((acc, t) => ({ ...acc, [t.name]: t }), {} as Record<string, Tag>)
+
+        for (const prompt of prompts) {
+          // Check if all tags of this prompt are enabled
+          let tagsEnabled = true
+          if (prompt.tags && prompt.tags.length > 0) {
+            tagsEnabled = prompt.tags.every(tagName => {
+              const tag = tagMap[tagName]
+              return tag && tag.enabled !== false
+            })
+          }
+
+          if (tagsEnabled) {
+            await db.prompts.update(prompt.id, { enabled: true })
+          }
+        }
+      }
+    })
+
+    toast.success(newEnabled ? '已启用，并尝试启用关联提示词' : '已停用，并停用关联提示词')
+  }
+
+  // Bulk Actions
+  const handleBulkEnable = async () => {
+    // Enable all categories
+    // For each category enabled, also try to enable its prompts
+    await db.transaction('rw', db.categories, db.prompts, db.tags, async () => {
+      await db.categories.filter(c => c.enabled === false && c.isDefault !== true).modify({ enabled: true })
+
+
+      // Re-evaluate all prompts to see if they can be enabled
+      // A prompt can be enabled if its category is enabled AND its tags are enabled
+      const allPrompts = await db.prompts.toArray()
+      const allCategories = await db.categories.toArray()
+      const allTags = await db.tags.toArray()
+
+      const categoryMap = allCategories.reduce((acc, c) => ({ ...acc, [c.id]: c }), {} as Record<string, Category>)
+      const tagMap = allTags.reduce((acc, t) => ({ ...acc, [t.name]: t }), {} as Record<string, Tag>)
+
+      for (const prompt of allPrompts) {
+        if (!prompt.enabled) {
+          const category = categoryMap[prompt.categoryId]
+          // We just enabled all categories, so category.enabled should be true (or we use the updated state logic)
+          // Actually, we modified DB but categoryMap might be stale if we fetched before modify? 
+          // Dexie modify waits. So fetched categories should be updated? No, we fetched separate array.
+          // Since we enabled ALL categories, we can assume category is enabled.
+
+          let tagsEnabled = true
+          if (prompt.tags && prompt.tags.length > 0) {
+            tagsEnabled = prompt.tags.every(tagName => {
+              const tag = tagMap[tagName]
+              return tag && tag.enabled !== false
+            })
+          }
+
+          if (tagsEnabled) {
+            await db.prompts.update(prompt.id, { enabled: true })
+          }
+        }
+      }
+    })
+    toast.success('一键启用完成')
+  }
+
+  const handleBulkDisable = async () => {
+    await db.transaction('rw', db.categories, db.prompts, async () => {
+      await db.categories.filter(c => c.enabled === true && c.isDefault !== true).modify({ enabled: false })
+      // Disable ALL prompts because if category is disabled, prompt must be disabled
+      // Wait, user said "停用分类时，停用关联提示词". 
+      // If we disable ALL categories, effectively ALL prompts should be disabled?
+      // Yes, prompts depend on category.
+      await db.prompts.toCollection().modify({ enabled: false })
+    })
+    toast.success('一键停用完成')
   }
 
   const handleSave = async (categoryData: Category) => {
@@ -139,17 +248,19 @@ export default function CategoryManager() {
 
       if (editingCategory) {
         await db.categories.put(categoryToSave)
+        toast.success('分类更新成功')
       } else {
         await db.categories.add(categoryToSave)
+        toast.success('分类创建成功')
       }
       setIsDialogOpen(false)
       setEditingCategory(null)
     } catch (error: any) {
       if (error.name === 'ConstraintError') {
-        alert('分类名称已存在，请使用其他名称。')
+        toast.error('分类名称已存在，请使用其他名称。')
       } else {
         console.error('Failed to save category:', error)
-        alert('保存失败，请重试。')
+        toast.error('保存失败，请重试。')
       }
     }
   }
@@ -167,16 +278,12 @@ export default function CategoryManager() {
       await db.transaction('rw', db.prompts, db.categories, async () => {
         if (deleteOption === 'move') {
           // Find default category
-          const defaultCat = await db.categories.where('isDefault').equals(true as any).first() // Cast to any due to dexie boolean indexing quirks if not indexed, but here we just filter
-          // Actually isDefault is not indexed in db.ts, so we should find it from array or add index.
-          // Since we have categories loaded in memory via useLiveQuery, we can find it there, but inside transaction better to query or assume we have it.
-          // Let's iterate or use the one we know.
+          const defaultCat = await db.categories.filter(c => !!c.isDefault).first()
+
           let targetCategoryId = defaultCat?.id
 
           if (!targetCategoryId) {
-            // If no default category found, fallback to keeping them (or maybe error?)
-            // Let's find any other category if default is missing, or create one?
-            // For now, assume default exists.
+            // If no default category found, fallback to the first available one
             const allCats = await db.categories.toArray()
             const def = allCats.find(c => c.isDefault) || allCats[0]
             targetCategoryId = def?.id
@@ -195,10 +302,12 @@ export default function CategoryManager() {
         await db.categories.delete(categoryToDelete.id)
       })
 
+      toast.success('分类删除成功')
       setDeleteDialogOpen(false)
       setCategoryToDelete(null)
     } catch (error) {
       console.error('Failed to delete category:', error)
+      toast.error('删除分类失败')
     }
   }
 
@@ -209,9 +318,10 @@ export default function CategoryManager() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
           <h1 className="text-2xl font-bold">分类管理</h1>
           <div className="flex flex-wrap gap-2 text-sm">
-            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">总计 {totalCategories} 个分类</Badge>
-            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">启用 {enabledCategories} 个</Badge>
-            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">提示词总数 {totalPrompts}</Badge>
+            <Button variant="outline" size="sm" className="h-6 text-xs" onClick={handleBulkEnable}>一键启用</Button>
+            <Button variant="outline" size="sm" className="h-6 text-xs" onClick={handleBulkDisable}>一键停用</Button>
+            <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-200">总计 {totalCategories} 个分类</Badge>
+            <Badge variant="outline" className="bg-[#AFC2DB]/20 text-[#6B85A8] border-[#AFC2DB]/40">启用 {enabledCategories} 个</Badge>
           </div>
         </div>
         <p className="text-muted-foreground text-sm">
@@ -258,10 +368,13 @@ export default function CategoryManager() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button variant="outline" size="sm" className="h-9 w-9 xl:w-auto p-0 xl:px-3 shrink-0">
-            <Upload className="h-4 w-4 xl:mr-1.5" />
-            <span className="hidden xl:inline text-xs">导出</span>
-          </Button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            accept=".json"
+            onChange={(e) => handleFileSelect(e, 'categories')}
+          />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -271,10 +384,19 @@ export default function CategoryManager() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem>本地导入</DropdownMenuItem>
-              <DropdownMenuItem>远程导入</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+                本地导入
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setImportUrlDialogOpen(true)}>
+                URL 导入
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <Button variant="outline" size="sm" className="h-9 w-9 xl:w-auto p-0 xl:px-3 shrink-0" onClick={() => exportToJson(categories, 'categories')}>
+            <Upload className="h-4 w-4 xl:mr-1.5" />
+            <span className="hidden xl:inline text-xs">导出</span>
+          </Button>
 
           <Button size="sm" onClick={handleAdd} className="h-9 w-9 xl:w-auto p-0 xl:px-3 shrink-0">
             <Plus className="h-4 w-4 xl:mr-1.5" />
@@ -302,34 +424,63 @@ export default function CategoryManager() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className={cn("h-6 w-6 -mt-1 -mr-1", category.isPinned ? "text-primary" : "text-muted-foreground transition-opacity")}
-                  onClick={() => handleTogglePinned(category)}
-                  title={category.isPinned ? "取消置顶" : "置顶"}
+                  className={cn("h-6 w-6 -mt-1 -mr-1", category.isPinned ? "text-primary" : "text-muted-foreground transition-opacity", category.isDefault && "opacity-50 cursor-not-allowed hover:bg-transparent hover:text-primary")}
+                  onClick={() => !category.isDefault && handleTogglePinned(category)}
+                  disabled={category.isDefault}
+                  title={category.isDefault ? "默认分类始终置顶" : (category.isPinned ? "取消置顶" : "置顶")}
                 >
                   {category.isPinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
                 </Button>
               </div>
             </CardHeader>
             <CardContent className="pb-3">
-              <p className="text-sm text-muted-foreground line-clamp-2 h-10 mb-6 leading-relaxed">
-                {category.description || '暂无描述'}
-              </p>
+              <HoverCard openDelay={200} closeDelay={100}>
+                <HoverCardTrigger asChild>
+                  <p
+                    className="text-sm text-muted-foreground line-clamp-1 mb-6 leading-relaxed cursor-help"
+                  >
+                    {category.description || '暂无描述'}
+                  </p>
+                </HoverCardTrigger>
+                <HoverCardContent className="w-80 p-0 overflow-hidden">
+                  <ScrollArea className="max-h-[200px] w-full">
+                    <div className="space-y-1 p-4">
+                      <p className="text-sm text-muted-foreground break-words break-all whitespace-pre-wrap">
+                        {category.description || '暂无描述'}
+                      </p>
+                    </div>
+                  </ScrollArea>
+                </HoverCardContent>
+              </HoverCard>
               <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                 <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground bg-secondary/50 px-2.5 py-1.5 rounded-md">
                   <FileText className="w-3.5 h-3.5" />
                   <span>{category.promptCount} 个提示词</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Switch
-                    checked={category.enabled}
-                    onCheckedChange={() => { /* Toggle enabled in DB */
-                      db.categories.update(category.id, { enabled: !category.enabled })
-                    }}
-                    className="data-[state=checked]:bg-primary scale-90 origin-right"
-                  />
-                  <span className="text-xs font-medium text-muted-foreground min-w-[36px]">
-                    {category.enabled ? '已启用' : '已停用'}
-                  </span>
+                  {category.isDefault ? (
+                    <div className="flex items-center gap-2 opacity-60 cursor-not-allowed">
+                      <Switch
+                        checked={category.enabled}
+                        disabled={true}
+                        className="data-[state=checked]:bg-primary scale-90 origin-right"
+                      />
+                      <span className="text-xs font-medium text-muted-foreground min-w-[36px]">
+                        已启用
+                      </span>
+                    </div>
+                  ) : (
+                    <>
+                      <Switch
+                        checked={category.enabled}
+                        onCheckedChange={() => handleToggleEnabled(category)}
+                        className="data-[state=checked]:bg-primary scale-90 origin-right"
+                      />
+                      <span className="text-xs font-medium text-muted-foreground min-w-[36px]">
+                        {category.enabled ? '已启用' : '已停用'}
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
               <div className='flex flex-col gap-1 text-xs text-muted-foreground mb-3'>
@@ -347,8 +498,9 @@ export default function CategoryManager() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 px-3 text-muted-foreground hover:text-primary hover:bg-primary/10"
-                onClick={() => handleEdit(category)}
+                className={cn("h-8 px-3 text-muted-foreground hover:text-primary hover:bg-primary/10", category.isDefault && "opacity-50 cursor-not-allowed hover:bg-transparent hover:text-muted-foreground")}
+                onClick={() => !category.isDefault && handleEdit(category)}
+                disabled={category.isDefault}
               >
                 <Pencil className="w-3.5 h-3.5 mr-1.5" /> 编辑
               </Button>
@@ -356,7 +508,7 @@ export default function CategoryManager() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 px-3 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  className="h-8 px-3 text-muted-foreground/70 hover:text-destructive hover:bg-destructive/10"
                   onClick={() => initiateDelete(category)}
                 >
                   <Trash2 className="w-3.5 h-3.5 mr-1.5" /> 删除
@@ -400,6 +552,12 @@ export default function CategoryManager() {
           </div>
         </RadioGroup>
       </DeleteConfirmDialog>
+
+      <ImportUrlDialog
+        open={importUrlDialogOpen}
+        onOpenChange={setImportUrlDialogOpen}
+        onImport={(data) => importFromUrl(data, 'categories')}
+      />
     </div>
   )
 }
