@@ -19,8 +19,9 @@ export default defineConfig({
     // action: {
     //   default_title: 'Open Sidepanel'
     // }
-    permissions: ['storage'],
+    permissions: ['storage', 'contextMenus'],
     host_permissions: [
+      '<all_urls>',
       'https://api.notion.com/*',
       'https://*.jianguoyun.com/*' // Common WebDAV example, usually users need specific
     ]

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { ComponentType } from 'react'
 
 import { Toaster } from 'sonner'
@@ -173,7 +173,31 @@ const SidebarGroupedMenuItems = ({
 }
 
 const ApplicationShell = () => {
-  const [breadcrumbItems, setBreadcrumbItems] = useState<string[]>(['提示词管理', '内容管理', '标签管理'])
+  const [breadcrumbItems, setBreadcrumbItems] = useState<string[]>(['提示词管理', '内容管理'])
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash
+      if (hash === '#category') {
+        setBreadcrumbItems(['提示词管理', '分类管理'])
+      } else if (hash === '#tag') {
+        setBreadcrumbItems(['提示词管理', '标签管理'])
+      } else if (hash === '#settings') {
+        setBreadcrumbItems(['设置'])
+      } else if (hash === '#sync') {
+        setBreadcrumbItems(['同步管理'])
+      } else if (hash === '#content' || hash === '') {
+        setBreadcrumbItems(['提示词管理', '内容管理'])
+      }
+    }
+
+    // Initial check
+    handleHashChange()
+
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashChange)
+    return () => window.removeEventListener('hashchange', handleHashChange)
+  }, [])
 
   const { appearance, updateAppearance } = useSettings()
   useTheme({

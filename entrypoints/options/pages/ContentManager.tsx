@@ -42,6 +42,8 @@ import {
 import { cn } from '@/lib/utils'
 import { PromptDialog } from '@/components/prompt-dialog'
 import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog'
+import { browser } from 'wxt/browser';
+
 import {
   Tooltip,
   TooltipContent,
@@ -199,6 +201,70 @@ export default function ContentManager() {
   // Import Dialog State
   const [importUrlDialogOpen, setImportUrlDialogOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // 监听来自 background 的消息或 storage 变化，以自动打开添加对话框
+  useEffect(() => {
+    const checkPendingPrompt = async () => {
+      const data = await browser.storage.local.get('pendingPromptContent');
+      if (data.pendingPromptContent) {
+        setEditingPrompt(null); // Ensure it's create mode
+        // 预填充内容 - 这里我们需要修改 PromptDialog 能够接受初始内容，或者在这里暂存
+        // 实际上 PromptDialog 接受 prompt 对象，如果是 null 则为空
+        // 所以我们需要构造一个临时的 partial prompt 或者通过其他方式传递
+        // 简单起见，我们在 setIsDialogOpen(true) 之后，PromptDialog 内部并不容易直接获取这个值
+        // 除非我们把 defaultPrompt 传进去，或者修改 editingPrompt 的类型允许 Partial
+
+        // 让我们创建一个临时的“新”prompt对象作为初始值
+        const newPrompt: any = {
+          title: data.pendingPromptContent.slice(0, 20) + (data.pendingPromptContent.length > 20 ? '...' : ''),
+          content: data.pendingPromptContent,
+          description: '',
+          tags: [],
+          categoryId: 'default', // Assuming default exists, will be handled by dialog logic hopefully or user selects
+          enabled: true,
+          isPinned: false
+        };
+        setEditingPrompt(newPrompt);
+        setIsDialogOpen(true);
+
+        // 清除 storage
+        await browser.storage.local.remove('pendingPromptContent');
+      }
+    };
+
+    checkPendingPrompt();
+
+    // 监听消息（针对页面已打开的情况）
+    const handleMessage = (message: any) => {
+      if (message.type === 'OPEN_ADD_PROMPT') {
+        const content = message.content;
+        const newPrompt: any = {
+          title: content.slice(0, 20) + (content.length > 20 ? '...' : ''),
+          content: content,
+          description: '',
+          tags: [],
+          categoryId: 'default',
+          enabled: true,
+          isPinned: false
+        };
+        setEditingPrompt(newPrompt);
+        setIsDialogOpen(true);
+      }
+    };
+
+    browser.runtime.onMessage.addListener(handleMessage);
+
+    // 监听 visibility change (针对页面在后台但被激活的情况)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        checkPendingPrompt();
+      }
+    });
+
+    return () => {
+      browser.runtime.onMessage.removeListener(handleMessage);
+    };
+  }, []);
 
   const filteredPrompts = useMemo(() => {
     const filtered = prompts.filter(prompt => {

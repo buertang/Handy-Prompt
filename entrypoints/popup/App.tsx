@@ -9,7 +9,9 @@ import {
   AlertTriangleIcon,
   Sun,
   Moon,
-  Monitor
+  Monitor,
+  Layers,
+  Tags
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -89,8 +91,35 @@ function App() {
     }
   };
 
+  const openOptionsPage = async (hash: string = '') => {
+    const optionsUrl = browser.runtime.getURL('/options.html');
+    const targetUrl = optionsUrl + hash;
+
+    try {
+      // 尝试查找已打开的 Options 页面
+      // 注意：使用通配符匹配可能带有 hash 的现有页面
+      const tabs = await browser.tabs.query({ url: optionsUrl + '*' });
+      const existingTab = tabs.find(t => t.url?.startsWith(optionsUrl));
+
+      if (existingTab && existingTab.id) {
+        // 如果已存在，更新 URL（触发 hashchange）并激活
+        await browser.tabs.update(existingTab.id, { active: true, url: targetUrl });
+        if (existingTab.windowId) {
+          await browser.windows.update(existingTab.windowId, { focused: true });
+        }
+      } else {
+        // 如果不存在，创建新标签页
+        await browser.tabs.create({ url: targetUrl });
+      }
+    } catch (error) {
+      console.error('Failed to navigate to options page:', error);
+      // 降级方案
+      await browser.tabs.create({ url: targetUrl });
+    }
+  };
+
   const handleManagePrompts = () => {
-    browser.runtime.openOptionsPage();
+    openOptionsPage();
   };
 
   const handleConfigureShortcuts = () => {
@@ -142,6 +171,26 @@ function App() {
             >
               管理提示词
             </Button>
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full text-xs h-8"
+                onClick={() => openOptionsPage('#category')}
+              >
+                <Layers className="w-3.5 h-3.5 mr-1.5" />
+                管理分类
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full text-xs h-8"
+                onClick={() => openOptionsPage('#tag')}
+              >
+                <Tags className="w-3.5 h-3.5 mr-1.5" />
+                管理标签
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
