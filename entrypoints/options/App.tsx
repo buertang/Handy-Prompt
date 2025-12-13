@@ -88,10 +88,7 @@ const menuItems: MenuItem[] = [
   {
     icon: ArrowRightLeftIcon,
     label: '同步管理',
-    items: [
-      { label: 'Notion同步', href: '#' },
-      { label: 'WebDAV同步', href: '#' }
-    ]
+    href: '#'
   },
   {
     icon: SettingsIcon,

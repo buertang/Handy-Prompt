@@ -20,5 +20,9 @@ export default defineConfig({
     //   default_title: 'Open Sidepanel'
     // }
     permissions: ['storage'],
+    host_permissions: [
+      'https://api.notion.com/*',
+      'https://*.jianguoyun.com/*' // Common WebDAV example, usually users need specific
+    ]
   },
 });
