@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Search, Copy, X, GripHorizontal, Check } from 'lucide-react';
 import { browser } from 'wxt/browser';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -113,6 +114,10 @@ export function PromptPicker({ onSelect, onClose, onDragStart }: PromptPickerPro
       case 'Escape':
         e.preventDefault();
         onClose();
+        // Return focus is handled by parent (content.tsx) via onClose causing useEffect cleanup or toggle logic?
+        // Actually onClose just sets pickerOpen(false). 
+        // We need to ensure focus restoration happens there too.
+        // But onClose is a prop. content.tsx handles the state change.
         return;
       case 'Tab':
         e.preventDefault();
@@ -145,6 +150,7 @@ export function PromptPicker({ onSelect, onClose, onDragStart }: PromptPickerPro
           e.stopPropagation(); // Also stop propagation for Ctrl+C
           if (prompts[selectedIndex]) {
             navigator.clipboard.writeText(prompts[selectedIndex].content);
+            toast.success('已复制到剪贴板');
           }
         }
         break;
@@ -354,6 +360,7 @@ export function PromptPicker({ onSelect, onClose, onDragStart }: PromptPickerPro
                         onClick={(e) => {
                           e.stopPropagation();
                           navigator.clipboard.writeText(prompt.content);
+                          toast.success('已复制到剪贴板');
                         }}
                         title="复制内容"
                       >

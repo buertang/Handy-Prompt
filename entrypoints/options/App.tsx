@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { ComponentType } from 'react'
 
-import { Toaster } from 'sonner'
+import { Toaster } from '@/components/ui/sonner'
 import {
   ArrowRightLeftIcon,
   ChevronRightIcon,

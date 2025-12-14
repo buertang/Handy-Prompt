@@ -2,6 +2,7 @@ import ReactDOM from 'react-dom/client';
 import '@/assets/tailwind.css';
 import { PromptPicker } from '@/components/prompt-picker';
 import { ContentSaveDialog } from '@/components/content-save-dialog';
+import { Toaster } from '@/components/ui/sonner';
 import { useState, useEffect, useRef } from 'react';
 import { browser } from 'wxt/browser';
 
@@ -40,6 +41,9 @@ function ContentApp() {
   const [activeElement, setActiveElement] = useState<HTMLElement | null>(null);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [saveContent, setSaveContent] = useState('');
+
+  // Track previous focus to restore it
+  const lastFocusedRef = useRef<HTMLElement | null>(null);
 
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -87,6 +91,8 @@ function ContentApp() {
 
       if (!isInput && !isContentEditable) return;
 
+      lastFocusedRef.current = target;
+
       let text = '';
       let cursorIndex = 0;
 
@@ -130,6 +136,54 @@ function ContentApp() {
       if (message.type === 'OPEN_CONTENT_SAVE_DIALOG') {
         setSaveContent(message.content);
         setSaveDialogOpen(true);
+      } else if (message.type === 'TOGGLE_PROMPT_PICKER') {
+        // Toggle picker for active element
+        if (pickerOpen) {
+          setPickerOpen(false);
+          // Restore focus
+          if (lastFocusedRef.current) {
+            lastFocusedRef.current.focus();
+            lastFocusedRef.current = null;
+          }
+        } else {
+          // If we have a lastFocusedRef (from previous interaction), try to use it if it's still connected
+          let target = document.activeElement as HTMLElement | null;
+
+          const isEditableElement = (el: HTMLElement | null): el is HTMLElement =>
+            !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+
+          if (!isEditableElement(target)) {
+            if (lastFocusedRef.current && document.body.contains(lastFocusedRef.current)) {
+              target = lastFocusedRef.current;
+            } else {
+              target = null;
+            }
+          }
+
+          if (isEditableElement(target)) {
+            lastFocusedRef.current = target;
+            setActiveElement(target);
+            const rect = target.getBoundingClientRect();
+            setPickerPosition({
+              top: rect.bottom + window.scrollY + 5,
+              left: rect.left + window.scrollX
+            });
+            setPickerOpen(true);
+          } else {
+            // Show centered if no input focused
+            setPickerPosition({
+              top: window.innerHeight / 2 - 200,
+              left: window.innerWidth / 2 - 250
+            });
+            setPickerOpen(true);
+          }
+        }
+      } else if (message.type === 'TRIGGER_SAVE_SELECTION') {
+        const selection = window.getSelection()?.toString();
+        if (selection) {
+          setSaveContent(selection);
+          setSaveDialogOpen(true);
+        }
       }
     };
     browser.runtime.onMessage.addListener(handleMessage);
@@ -141,6 +195,8 @@ function ContentApp() {
   }, []);
 
   const handleInsert = (content: string) => {
+    // ... insert logic ...
+    // Focus logic handles activeElement but we should also consider restoring focus if needed
     if (!activeElement) return;
 
     if (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA') {
@@ -162,14 +218,20 @@ function ContentApp() {
 
       // Trigger input event for frameworks (React/Vue)
       input.dispatchEvent(new Event('input', { bubbles: true }));
+
+      // Keep focus on input
+      input.focus();
     } else if (activeElement.isContentEditable) {
       // Simple replacement for contentEditable
       // Note: This replaces everything or appends. 
       // Real implementation needs Range manipulation to replace specific /p
       activeElement.innerText = activeElement.innerText.replace(/\/p$/, '') + content;
+      activeElement.focus();
     }
 
     setPickerOpen(false);
+    // Clear ref since we handled focus manually
+    lastFocusedRef.current = null;
   };
 
   return (
@@ -182,7 +244,13 @@ function ContentApp() {
         >
           <PromptPicker
             onSelect={handleInsert}
-            onClose={() => setPickerOpen(false)}
+            onClose={() => {
+              setPickerOpen(false);
+              if (lastFocusedRef.current) {
+                lastFocusedRef.current.focus();
+                lastFocusedRef.current = null;
+              }
+            }}
             onDragStart={handleDragStart}
           />
         </div>
@@ -197,6 +265,7 @@ function ContentApp() {
           />
         </div>
       )}
+      <Toaster />
     </div>
   );
 }

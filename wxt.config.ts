@@ -24,6 +24,22 @@ export default defineConfig({
       '<all_urls>',
       'https://api.notion.com/*',
       'https://*.jianguoyun.com/*' // Common WebDAV example, usually users need specific
-    ]
+    ],
+    commands: {
+      "open-prompt-picker": {
+        "suggested_key": {
+          "default": "Ctrl+Shift+P",
+          "mac": "Command+Shift+P"
+        },
+        "description": "打开提示词选择弹窗"
+      },
+      "save-selected-text": {
+        "suggested_key": {
+          "default": "Ctrl+Shift+S",
+          "mac": "Command+Shift+S"
+        },
+        "description": "保存选中的文本作为提示词"
+      }
+    }
   },
 });

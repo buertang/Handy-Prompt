@@ -3,6 +3,21 @@ import { db } from '@/lib/db';
 export default defineBackground(() => {
   console.log('Background script loaded!', { id: browser.runtime.id });
 
+  // Handle commands (shortcuts)
+  browser.commands.onCommand.addListener(async (command) => {
+    console.log('Command received:', command);
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    const activeTab = tabs[0];
+    if (!activeTab?.id) return;
+
+    if (command === 'open-prompt-picker') {
+      browser.tabs.sendMessage(activeTab.id, { type: 'TOGGLE_PROMPT_PICKER' });
+    } else if (command === 'save-selected-text') {
+      // For saving text, we need the content script to get the selection
+      browser.tabs.sendMessage(activeTab.id, { type: 'TRIGGER_SAVE_SELECTION' });
+    }
+  });
+
   // Handle messages from content script
   browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'SEARCH_PROMPTS') {

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { browser } from 'wxt/browser';
+import { toast } from 'sonner';
 import {
   X,
   Save,
@@ -101,13 +102,14 @@ export function ContentSaveDialog({ open, onOpenChange, initialContent }: Conten
       });
 
       if (res && res.success) {
+        toast.success('保存成功');
         onOpenChange(false);
       } else {
-        alert('保存失败');
+        toast.error('保存失败');
       }
     } catch (e) {
       console.error(e);
-      alert('保存失败');
+      toast.error('保存失败');
     } finally {
       setSaving(false);
     }
