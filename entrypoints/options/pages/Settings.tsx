@@ -3,8 +3,10 @@ import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { useSettings } from '@/hooks/use-settings'
 import { useTheme } from '@/hooks/use-theme'
-import { Moon, Sun, Monitor } from 'lucide-react'
+import { Moon, Sun, Monitor, Keyboard } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Button } from '@/components/ui/button'
+import { browser } from 'wxt/browser'
 
 export default function Settings() {
   const { system, updateSystem, appearance, updateAppearance } = useSettings()
@@ -21,7 +23,7 @@ export default function Settings() {
           管理扩展程序的通用偏好设置。
         </p>
       </div>
-      
+
       <Card>
         <CardHeader>
           <CardTitle>外观</CardTitle>
@@ -74,10 +76,44 @@ export default function Settings() {
                 如果未设置快捷键，不再显示警告提示。
               </p>
             </div>
-            <Switch 
+            <Switch
               checked={system.suppressShortcutWarning}
               onCheckedChange={(checked) => updateSystem({ suppressShortcutWarning: checked })}
             />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label>公益展示</Label>
+              <p className="text-sm text-muted-foreground">
+                在侧边栏底部显示宝贝回家公益信息。
+              </p>
+            </div>
+            <Switch
+              checked={system.showCharityDisplay}
+              onCheckedChange={(checked) => updateSystem({ showCharityDisplay: checked })}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>快捷键</CardTitle>
+          <CardDescription>管理扩展程序的快捷键设置。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label>配置快捷键</Label>
+              <p className="text-sm text-muted-foreground">
+                前往浏览器的扩展程序页面配置快捷键。
+              </p>
+            </div>
+            <Button variant="outline" onClick={() => browser.tabs.create({ url: 'chrome://extensions/shortcuts' })}>
+              <Keyboard className="mr-2 h-4 w-4" />
+              去配置
+            </Button>
           </div>
         </CardContent>
       </Card>

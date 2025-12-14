@@ -50,6 +50,7 @@ import LanguageDropdown from '@/components/shadcn-studio/blocks/dropdown-languag
 import { ThemeToggle } from '@/components/shadcn-studio/blocks/theme-toggle'
 import { useSettings } from '@/hooks/use-settings'
 import { useTheme } from '@/hooks/use-theme'
+import { CharityCard } from '@/components/charity-card'
 
 import ContentManager from './pages/ContentManager'
 import CategoryManager from './pages/CategoryManager'
@@ -203,11 +204,26 @@ const ApplicationShell = () => {
     return () => window.removeEventListener('hashchange', handleHashChange)
   }, [])
 
-  const { appearance, updateAppearance } = useSettings()
+  const { appearance, updateAppearance, system } = useSettings()
   useTheme({
     theme: appearance.theme,
     onThemeChange: (theme) => updateAppearance({ theme })
   })
+
+  // 监听窗口高度，如果高度不足则隐藏公益卡片
+  const [isHeightSufficient, setIsHeightSufficient] = useState(true)
+
+  useEffect(() => {
+    // 700px 为阈值：Header(~80) + Footer(~40) + CharityCard(320) + MinMenu(~260)
+    const mql = window.matchMedia('(min-height: 700px)')
+    const handleChange = (e: MediaQueryListEvent) => setIsHeightSufficient(e.matches)
+
+    // Initial check
+    setIsHeightSufficient(mql.matches)
+
+    mql.addEventListener('change', handleChange)
+    return () => mql.removeEventListener('change', handleChange)
+  }, [])
 
   const handleMenuClick = (label: string, subLabel?: string) => {
     if (subLabel) {
@@ -272,6 +288,7 @@ const ApplicationShell = () => {
             <SidebarGroupedMenuItems data={menuItems} onItemClick={handleMenuClick} />
           </SidebarContent>
           <SidebarFooter className='px-4 py-3.5'>
+            {system.showCharityDisplay && isHeightSufficient && <CharityCard />}
             <a href='#'>
               <div className='flex items-center justify-center'>
                 {/* <img src={LogoSvg} alt="Logo" className='size-8.5' /> */}

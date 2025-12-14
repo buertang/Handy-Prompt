@@ -11,6 +11,7 @@ interface SystemSettings {
   notifications: boolean
   syncInterval: number
   suppressShortcutWarning: boolean
+  showCharityDisplay: boolean
 }
 
 interface UISettings {
@@ -28,7 +29,8 @@ const systemSettings = storage.defineItem<SystemSettings>('sync:systemSettings',
   fallback: {
     notifications: true,
     syncInterval: 15,
-    suppressShortcutWarning: false
+    suppressShortcutWarning: false,
+    showCharityDisplay: true
   }
 })
 
@@ -43,7 +45,8 @@ export function useSettings() {
   const [system, setSystem] = useState<SystemSettings>({
     notifications: true,
     syncInterval: 15,
-    suppressShortcutWarning: false
+    suppressShortcutWarning: false,
+    showCharityDisplay: true
   })
   const [ui, setUI] = useState<UISettings>({ activeTab: 'home' })
   const [loading, setLoading] = useState(true)
@@ -79,7 +82,8 @@ export function useSettings() {
       setSystem(newValue ?? {
         notifications: true,
         syncInterval: 15,
-        suppressShortcutWarning: false
+        suppressShortcutWarning: false,
+        showCharityDisplay: true
       })
     })
 
@@ -138,7 +142,7 @@ export function useSettings() {
 
       // Reset to default values
       const defaultAppearance = { theme: 'system' as Theme }
-      const defaultSystem = { notifications: true, syncInterval: 15, suppressShortcutWarning: false }
+      const defaultSystem = { notifications: true, syncInterval: 15, suppressShortcutWarning: false, showCharityDisplay: true }
       const defaultUI = { activeTab: 'home' }
 
       setAppearance(defaultAppearance)

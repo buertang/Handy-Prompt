@@ -75,6 +75,42 @@ export default defineBackground(() => {
       })();
       return true;
     }
+
+    if (message.type === 'FETCH_CHARITY_DATA') {
+      (async () => {
+        try {
+          // 在 Background Script 中请求，避免页面环境的 CSP/CORS 限制
+          // 并通过 User-Agent 模拟浏览器行为（虽然浏览器通常会覆盖，但在扩展环境中限制较少）
+          const response = await fetch('https://api.isoyu.com/gy/api.php', {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+              'Cache-Control': 'no-cache'
+            },
+            // 明确指定不发送 Referrer
+            referrerPolicy: 'no-referrer' 
+          });
+          
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          
+          // 尝试获取文本，处理可能的非 JSON 响应（如 Cloudflare 页面）
+          const text = await response.text();
+          try {
+            const data = JSON.parse(text);
+            sendResponse({ success: true, data: data.data });
+          } catch (e) {
+            // 如果解析失败，可能是返回了 HTML (Cloudflare challenge)
+            throw new Error('Response is not valid JSON (likely Cloudflare challenge)');
+          }
+        } catch (error: any) {
+          console.error('Charity fetch error:', error);
+          sendResponse({ success: false, error: error.message || String(error) });
+        }
+      })();
+      return true;
+    }
   });
 
   // Create context menus on install

@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Handy Prompt - 随手可用的提示词工具</title>
+    <link rel="icon" href="public/icon/32.png" type="image/png">
+    <style>
+        :root {
+            /* 基于 Tailwind oklch 值的近似 Hex 转换 */
+            /* background: oklch(1 0 0) -> #ffffff */
+            --bg-color: #ffffff;
+
+            /* foreground: oklch(0.145 0 0) -> #202020 */
+            --text-color: #202020;
+
+            /* primary: oklch(0.205 0 0) -> #2b2b2b */
+            --primary-color: #2b2b2b;
+
+            /* secondary: oklch(0.97 0 0) -> #f5f5f5 */
+            --secondary-bg: #f5f5f5;
+
+            /* muted-foreground: oklch(0.556 0 0) -> #808080 -> 调整为更深的颜色以提高对比度 */
+            --muted-text: #525252;
+
+            /* border: oklch(0.922 0 0) -> #e5e5e5 */
+            --border-color: #e5e5e5;
+
+            /* accent: oklch(0.97 0 0) -> #f5f5f5 */
+            --accent-color: #f5f5f5;
+            --accent-foreground: #2b2b2b;
+
+            /* 自定义 Hover 态 */
+            --hover-bg: #f0f0f0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* 锚点定位偏移，防止被吸顶导航栏遮挡 */
+        html {
+            scroll-padding-top: 100px;
+            /* header 高度(约80px) + 额外缓冲 */
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+        }
+
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Header */
+        header {
+            background-color: var(--bg-color);
+            padding: 1.5rem 0;
+            /* 增加内边距 */
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            /* border-bottom: 1px solid var(--border-color); 去掉导航栏底部分割线 */
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.25rem;
+            /* 调整字体大小 */
+            font-weight: 600;
+            color: var(--primary-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo img {
+            height: 24px;
+            width: auto;
+            display: block;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2.5rem;
+            /* 增加间距 */
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--muted-text);
+            font-size: 0.95rem;
+            /* 调整字体大小 */
+            font-weight: 400;
+            /* 减小字重 */
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            color: var(--primary-color);
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 6rem 0 4rem;
+            /* 增加顶部间距 */
+            text-align: center;
+            background-color: var(--bg-color);
+            /* border-bottom: 1px solid var(--border-color); 去掉 Hero 底部分割线 */
+        }
+
+        .hero h1 {
+            font-size: 3rem;
+            /* 加大标题 */
+            margin-bottom: 1.5rem;
+            color: var(--primary-color);
+            letter-spacing: -0.02em;
+            font-weight: 700;
+        }
+
+        .hero p {
+            font-size: 1.125rem;
+            color: var(--muted-text);
+            max-width: 640px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.75;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background-color: var(--primary-color);
+            color: var(--bg-color);
+            padding: 0.875rem 2rem;
+            /* 加大按钮 */
+            border-radius: 0.5rem;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+        }
+
+        .cta-button:hover {
+            opacity: 0.9;
+            background-color: var(--primary-color);
+            transform: translateY(-1px);
+        }
+
+        .cta-button.secondary {
+            background-color: transparent;
+            color: var(--primary-color);
+            border: 1px solid var(--border-color);
+            /* 增加文字可见度 */
+            color: #4a4a4a;
+        }
+
+        .cta-button.secondary:hover {
+            background-color: var(--secondary-bg);
+            border-color: #999;
+            color: var(--primary-color);
+        }
+
+        /* Content Section */
+        .content {
+            padding: 4rem 0 6rem;
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: var(--bg-color);
+            padding: 2rem;
+            border-radius: 0.75rem;
+            border: 1px solid var(--border-color);
+            transition: all 0.2s;
+        }
+
+        .card:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+
+        .card h3 {
+            margin-bottom: 1rem;
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .card p {
+            color: var(--muted-text);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        /* Documentation Layout */
+        .doc-container {
+            display: flex;
+            gap: 3rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            align-items: flex-start;
+            position: relative;
+        }
+
+        .doc-content h2 {
+            font-size: 1.75rem;
+            margin-top: 3rem;
+            margin-bottom: 1.5rem;
+            color: var(--primary-color);
+            letter-spacing: -0.01em;
+            font-weight: 600;
+            scroll-margin-top: 100px;
+            /* 锚点定位偏移 */
+        }
+
+        .doc-content h3 {
+            font-size: 1.25rem;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            color: var(--text-color);
+            font-weight: 600;
+            scroll-margin-top: 100px;
+            /* 锚点定位偏移 */
+        }
+
+        .doc-content p {
+            margin-bottom: 1.25rem;
+            color: var(--text-color);
+            line-height: 1.75;
+        }
+
+        .doc-content ul,
+        .doc-content ol {
+            margin-bottom: 1.5rem;
+            padding-left: 1.5rem;
+            color: var(--text-color);
+        }
+
+        .doc-content li {
+            margin-bottom: 0.5rem;
+            line-height: 1.75;
+        }
+
+        .doc-content {
+            flex: 1;
+            background: var(--bg-color);
+            padding: 2rem 0;
+            margin-top: 0;
+            min-width: 0;
+            /* 防止内容溢出 */
+        }
+
+        .doc-content h1 {
+            font-size: 2.25rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            letter-spacing: -0.02em;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        /* 侧边目录样式 */
+        .doc-sidebar {
+            width: 240px;
+            position: sticky;
+            top: 100px;
+            /* 距离顶部导航栏的距离 */
+            flex-shrink: 0;
+            padding: 2rem 0;
+            border-left: 1px solid var(--border-color);
+            margin-top: 2rem;
+            padding-left: 1.5rem;
+        }
+
+        /* 移动端隐藏侧边栏 */
+        @media (max-width: 1024px) {
+            .doc-sidebar {
+                display: none;
+            }
+
+            .doc-container {
+                display: block;
+                max-width: 960px;
+            }
+        }
+
+        .doc-toc {
+            background: transparent;
+            padding: 0;
+            border-radius: 0;
+            margin: 0;
+            border: none;
+        }
+
+        .doc-toc h3 {
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--primary-color);
+        }
+
+        .doc-toc ul {
+            margin-bottom: 0;
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .doc-toc li {
+            margin-bottom: 0.75rem;
+        }
+
+        .doc-toc a {
+            text-decoration: none;
+            color: var(--muted-text);
+            font-size: 0.9rem;
+            font-weight: 400;
+            transition: all 0.2s;
+            display: block;
+            border-left: 2px solid transparent;
+            padding-left: 0.75rem;
+            margin-left: -1px;
+        }
+
+        .doc-toc a:hover {
+            color: var(--primary-color);
+            border-left-color: var(--muted-text);
+            transform: none;
+        }
+
+        .doc-toc a.active {
+            color: var(--primary-color);
+            font-weight: 600;
+            border-left-color: var(--primary-color);
+        }
+
+        .doc-content code {
+            background-color: var(--secondary-bg);
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.25rem;
+            font-family: monospace;
+            font-size: 0.9em;
+            color: var(--primary-color);
+            border: 1px solid var(--border-color);
+        }
+
+        .doc-content blockquote {
+            border-left: 3px solid var(--border-color);
+            padding-left: 1rem;
+            margin: 1rem 0;
+            color: var(--muted-text);
+            background-color: transparent;
+            padding: 0.5rem 1rem;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 2rem 0;
+            margin-top: 4rem;
+            border-top: 1px solid var(--border-color);
+            color: var(--muted-text);
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            .nav-links {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="container">
+            <nav>
+                <a href="#" class="logo">
+                    <img src="public/icon/32.png" alt="Handy Prompt Logo">
+                    Handy Prompt
+                </a>
+                <div class="nav-links">
+                    <a href="#home" class="active">首页</a>
+                    <a href="#guide">配置指南</a>
+                    <a href="#" target="_blank">下载插件</a>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <div id="home">
+        <section class="hero">
+            <div class="container">
+                <h1>让AI交互更高效</h1>
+                <p>Handy Prompt 是一款轻量级Chrome扩展，致力于成为你随手可用的Prompt工具。支持Notion双向同步，让灵感在多端自由流转。</p>
+                <div style="display: flex; gap: 1rem; justify-content: center;">
+                    <a href="#" class="cta-button">立即下载</a>
+                    <a href="#guide" class="cta-button secondary">查看文档</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="content">
+            <div class="container">
+                <h2 style="text-align: center; margin-bottom: 3rem; font-size: 2rem;">主要功能</h2>
+                <div class="card-grid">
+                    <div class="card">
+                        <h3>📝 随手记录</h3>
+                        <p>浏览网页时遇到好的Prompt？选中文本即可一键保存，支持智能分类与标签管理。</p>
+                    </div>
+                    <div class="card">
+                        <h3>🔄 Notion同步</h3>
+                        <p>强大的Notion双向同步功能，支持自动备份与多设备数据互通，数据安全有保障。</p>
+                    </div>
+                    <div class="card">
+                        <h3>⚡ 极速调用</h3>
+                        <p>使用 <code>/p</code> 指令或侧边栏快速唤起，点击即可复制或插入到输入框，流畅无感。</p>
+                    </div>
+                    <div class="card">
+                        <h3>🤝 公益展示</h3>
+                        <p>内置"宝贝回家"公益展示模块，在提升效率的同时，也为社会贡献一份温暖。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div id="guide" style="padding-top: 60px;">
+        <main class="doc-container">
+            <!-- 侧边目录 -->
+            <aside class="doc-sidebar">
+                <nav class="doc-toc">
+                    <h3>目录</h3>
+                    <ul>
+                        <li><a href="#prep">前期准备</a></li>
+                        <li><a href="#config">基本配置</a></li>
+                    </ul>
+                </nav>
+            </aside>
+
+            <!-- 文档内容 -->
+            <article class="doc-content">
+                <h1>Notion同步配置指南</h1>
+                <p>本指南将帮助你设置Notion同步功能。通过这个功能，你可以在插件和Notion数据库之间同步你的提示词，实现云端备份、多设备同步等功能。</p>
+
+                <h2 id="prep">前期准备</h2>
+                <p>在开始配置之前，你需要完成以下准备工作：</p>
+
+                <h3>1. 创建Notion集成（获取API密钥）</h3>
+                <ol>
+                    <li>访问 <a href="https://www.notion.so/my-integrations" target="_blank"
+                            style="color: var(--primary-color); text-decoration: underline;">Notion官方集成页面</a></li>
+                    <li>点击 <strong>"+ New integration"</strong> 按钮</li>
+                    <li>填写集成名称（如"Handy Prompt Sync"）</li>
+                    <li>选择关联的工作区（你想同步到的工作区），并点击 <strong>"Submit"</strong></li>
+                    <li>在 <strong>"Capabilities"</strong> 部分，确保选择：
+                        <ul>
+                            <li>Read content</li>
+                            <li>Update content</li>
+                            <li>Insert content</li>
+                        </ul>
+                    </li>
+                    <li>选择 <strong>“No user information”</strong>，并保存</li>
+                    <li>记下生成的 <strong>"Internal Integration Secret"</strong>（即API密钥）</li>
+                </ol>
+
+                <h3>2. 创建Notion数据库</h3>
+                <ol>
+                    <li>在你的Notion工作区中创建一个新页面</li>
+                    <li>在下方选择 <strong>Database -> Empty database</strong></li>
+                </ol>
+
+                <h3>3. 连接数据库与集成</h3>
+                <ol>
+                    <li>在Notion中打开你刚创建的数据库</li>
+                    <li>点击右上角的 <strong>"..."</strong>（更多选项）</li>
+                    <li>选择 <strong>"Connect to"</strong> (或 "Add connections")</li>
+                    <li>找到并选择你刚创建的集成（如"Handy Prompt Sync"）</li>
+                    <li>记下数据库ID。数据库ID在浏览器URL中，形式为：<br>
+                        <code>https://www.notion.so/xxx?v=yyy</code> 中的 <code>xxx</code> 部分
+                    </li>
+                </ol>
+
+                <h2 id="config">基本配置</h2>
+                <p>完成前期准备后，在Handy Prompt插件中进行配置：</p>
+                <ol>
+                    <li>打开Handy Prompt插件的选项页面</li>
+                    <li>导航到 <strong>"同步管理"</strong> 菜单，选择 <strong>"Notion配置"</strong></li>
+                    <li>填写以下信息：
+                        <ul>
+                            <li><strong>Notion API密钥</strong>：粘贴你之前获取的 "Internal Integration Secret"</li>
+                            <li><strong>Notion数据库ID</strong>：粘贴你之前记下的数据库ID</li>
+                        </ul>
+                    </li>
+                    <li>点击 <strong>"保存设置 & 测试连接"</strong></li>
+                </ol>
+
+                <blockquote>
+                    如果显示"连接成功"，说明配置正确。
+                </blockquote>
+            </article>
+        </main>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Handy Prompt. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Handy Prompt website loaded successfully!');
+
+            // 简单的滚动监听，更新导航栏高亮
+            const sections = ['home', 'guide'];
+            const navLinks = document.querySelectorAll('.nav-links a');
+
+            window.addEventListener('scroll', () => {
+                let current = '';
+                sections.forEach(section => {
+                    const element = document.getElementById(section);
+                    if (element) {
+                        const sectionTop = element.offsetTop;
+                        if (scrollY >= sectionTop - 150) {
+                            current = section;
+                        }
+                    }
+                });
+
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href').includes(current)) {
+                        link.classList.add('active');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>

@@ -12,6 +12,8 @@ export default defineConfig({
     plugins: [tailwindcss()],
   }),
   manifest: {
+    name: 'Handy Prompt',
+    description: '做自己随手可用的prompt工具',
     // permissions: ['sidePanel', 'storage'],
     // side_panel: {
     //   default_path: 'sidepanel.html'
@@ -22,8 +24,6 @@ export default defineConfig({
     permissions: ['storage', 'contextMenus'],
     host_permissions: [
       '<all_urls>',
-      'https://api.notion.com/*',
-      'https://*.jianguoyun.com/*' // Common WebDAV example, usually users need specific
     ],
     commands: {
       "open-prompt-picker": {
