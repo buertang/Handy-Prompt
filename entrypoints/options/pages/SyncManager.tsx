@@ -21,6 +21,7 @@ import {
   restoreFromWebDav,
   getBackupDisplayName
 } from '@/lib/webdav-sync'
+import { useI18n } from '@/components/i18n-provider'
 
 const filterChinese = (value: string) => value.replace(/[\u4e00-\u9fff]/g, '')
 const isPureNumber = (value: string) => /^\d+$/.test(value)
@@ -33,11 +34,8 @@ const isValidUrl = (value: string) => {
   }
 }
 
-
-
-
-
 export default function SyncManager() {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState('webdav')
   const [loading, setLoading] = useState(false)
   const [syncing, setSyncing] = useState(false)
@@ -103,13 +101,13 @@ export default function SyncManager() {
       const client = getWebDavClient(webDavConfig)
       const files = await loadWebDavIndex(client)
       if (!files.length) {
-        toast.info('当前没有找到任何备份文件')
+        toast.info(t('sync.webdav.noFilesFound'))
       }
       updateBackupListState(files)
     } catch (error: any) {
       console.error(error)
-      toast.error('加载失败', {
-        description: error.message || '网络或服务器错误',
+      toast.error(t('sync.webdav.loadFail'), {
+        description: error.message || 'Network Error',
       })
     } finally {
       setLoading(false)
@@ -126,14 +124,14 @@ export default function SyncManager() {
 
       if (result.success) {
         toast.success(result.message, {
-          description: `导出: ${result.details?.exported}, 导入: ${result.details?.imported}, 更新: ${result.details?.updated}`
+          description: `Exported: ${result.details?.exported}, Imported: ${result.details?.imported}, Updated: ${result.details?.updated}`
         })
       } else {
-        toast.error('同步失败', { description: result.message })
+        toast.error(t('sync.notion.syncFail'), { description: result.message })
       }
     } catch (error: any) {
       console.error(error)
-      toast.error(`同步失败: ${error.message}`)
+      toast.error(`${t('sync.notion.syncFail')}: ${error.message}`)
     } finally {
       setSyncing(false)
     }
@@ -193,15 +191,15 @@ export default function SyncManager() {
 
       const result = await backupToWebDav(webDavConfig)
 
-      toast.success('备份成功', {
-        description: `已备份到 ${result.fileName}`,
+      toast.success(t('sync.webdav.backupSuccess'), {
+        description: t('sync.webdav.backupSuccessDesc').replace('$1', result.fileName),
       })
 
       updateBackupListState(result.nextIndex)
     } catch (error: any) {
       console.error(error)
-      toast.error('备份失败', {
-        description: error.message || '网络或服务器错误',
+      toast.error(t('sync.webdav.backupFail'), {
+        description: error.message || 'Network Error',
       })
     } finally {
       setLoading(false)
@@ -224,12 +222,12 @@ export default function SyncManager() {
         updateBackupListState(files)
       } catch (error) {
         console.error(error)
-        toast.error('恢复失败', { description: '无法获取备份列表' })
+        toast.error(t('sync.webdav.restoreFail'), { description: t('sync.webdav.loadFail') })
         return
       }
 
       if (!files.length) {
-        toast.error('恢复失败', { description: '没有找到任何备份文件' })
+        toast.error(t('sync.webdav.restoreFail'), { description: t('sync.webdav.noFilesFound') })
         return
       }
 
@@ -239,13 +237,16 @@ export default function SyncManager() {
 
       const result = await restoreFromWebDav(webDavConfig, fileName)
 
-      toast.success('恢复成功', {
-        description: `提示词 ${result.promptsCount} 条，分类 ${result.categoriesCount} 个，标签 ${result.tagsCount} 个`,
+      toast.success(t('sync.webdav.restoreSuccess'), {
+        description: t('sync.webdav.restoreSuccessDesc')
+          .replace('$1', result.promptsCount.toString())
+          .replace('$2', result.categoriesCount.toString())
+          .replace('$3', result.tagsCount.toString()),
       })
     } catch (error: any) {
       console.error(error)
-      toast.error('恢复失败', {
-        description: error.message || '网络或服务器错误',
+      toast.error(t('sync.webdav.restoreFail'), {
+        description: error.message || 'Network Error',
       })
     } finally {
       setLoading(false)
@@ -255,16 +256,16 @@ export default function SyncManager() {
   return (
     <div className='flex flex-col gap-6 max-w-4xl mx-auto'>
       <div className='flex flex-col gap-2'>
-        <h1 className='text-2xl font-bold'>同步管理</h1>
+        <h1 className='text-2xl font-bold'>{t('sync.title')}</h1>
         <p className="text-muted-foreground text-sm">
-          配置多端同步服务，保障数据安全与跨设备使用。
+          {t('sync.subtitle')}
         </p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2 mb-4">
-          <TabsTrigger value="webdav">WebDAV 备份</TabsTrigger>
-          <TabsTrigger value="notion">Notion 同步</TabsTrigger>
+          <TabsTrigger value="webdav">{t('sync.webdav.tab')}</TabsTrigger>
+          <TabsTrigger value="notion">{t('sync.notion.tab')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="notion">
@@ -272,8 +273,8 @@ export default function SyncManager() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
-                  <CardTitle>Notion 配置</CardTitle>
-                  <CardDescription>将提示词同步到 Notion 数据库，支持双向同步。</CardDescription>
+                  <CardTitle>{t('sync.notion.title')}</CardTitle>
+                  <CardDescription>{t('sync.notion.description')}</CardDescription>
                 </div>
                 <Switch
                   checked={notionConfig.enabled}
@@ -283,35 +284,37 @@ export default function SyncManager() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="notion-key">Internal Integration Token</Label>
+                <Label htmlFor="notion-key">{t('sync.notion.token')}</Label>
                 <PasswordInput
                   id="notion-key"
-                  placeholder="secret_..."
+                  placeholder={t('sync.notion.tokenPlaceholder')}
                   value={notionConfig.apiKey}
                   onChange={(e) => setNotionConfig({ ...notionConfig, apiKey: filterChinese(e.target.value) })}
                 />
                 <p className="text-xs text-muted-foreground">
-                  在 <a href="https://www.notion.so/my-integrations" target="_blank" className="underline text-primary">Notion Integrations</a> 中创建并获取 Token，确保 Notion Integrations 具有读写权限。
+                  {t('sync.notion.tokenHelpPre')}
+                  <a href="https://www.notion.so/my-integrations" target="_blank" className="underline text-primary">{t('sync.notion.tokenHelpLink')}</a>
+                  {t('sync.notion.tokenHelpPost')}
                 </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="notion-db">Database ID</Label>
+                <Label htmlFor="notion-db">{t('sync.notion.dbId')}</Label>
                 <ClearableInput
                   id="notion-db"
-                  placeholder="32位数据库ID"
+                  placeholder={t('sync.notion.dbIdPlaceholder')}
                   value={notionConfig.databaseId}
                   onChange={(e) => setNotionConfig({ ...notionConfig, databaseId: filterChinese(e.target.value) })}
                   onClear={() => setNotionConfig({ ...notionConfig, databaseId: '' })}
                 />
                 <p className="text-xs text-muted-foreground">
-                  从 Notion 数据库页面 URL 中提取 ID
+                  {t('sync.notion.dbIdHelp1')}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  注意：通过 Notion 双向同步的时间会被截断到分钟（秒固定为 00），本地操作和 WebDAV 备份仍会保留秒级精度。
+                  {t('sync.notion.dbIdHelp2')}
                 </p>
                 {notionDatabaseIdIsPureNumber && (
                   <p className="text-xs text-destructive">
-                    Database ID 不能为纯数字，请输入有效的 32 位 ID
+                    {t('sync.notion.invalidDbId')}
                   </p>
                 )}
               </div>
@@ -319,13 +322,13 @@ export default function SyncManager() {
             <CardFooter className="flex justify-between border-t bg-muted/20 p-4">
               <Button variant="outline" disabled={!notionConfig.enabled || !isNotionFormValid || syncing} onClick={handleSyncNotion}>
                 <RefreshCw className={cn("mr-2 h-4 w-4", syncing && "animate-spin")} />
-                {syncing ? '同步中...' : '立即同步'}
+                {syncing ? t('sync.notion.syncing') : t('sync.notion.sync')}
               </Button>
               <Button onClick={handleSaveNotion} disabled={loading || !isNotionFormValid}>
-                {loading ? '保存中...' : (
-                  saveStatus === 'success' ? <><CheckCircle2 className="mr-2 h-4 w-4" /> 已保存</> :
-                    saveStatus === 'error' ? <><AlertCircle className="mr-2 h-4 w-4" /> 失败</> :
-                      <><Save className="mr-2 h-4 w-4" /> 保存配置</>
+                {loading ? t('sync.webdav.saving') : (
+                  saveStatus === 'success' ? <><CheckCircle2 className="mr-2 h-4 w-4" /> {t('sync.webdav.saved')}</> :
+                    saveStatus === 'error' ? <><AlertCircle className="mr-2 h-4 w-4" /> {t('sync.webdav.failed')}</> :
+                      <><Save className="mr-2 h-4 w-4" /> {t('sync.webdav.saveConfig')}</>
                 )}
               </Button>
             </CardFooter>
@@ -337,8 +340,8 @@ export default function SyncManager() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
-                  <CardTitle>WebDAV 配置</CardTitle>
-                  <CardDescription>使用支持 WebDAV 协议的网盘（如坚果云、Nextcloud）进行备份。</CardDescription>
+                  <CardTitle>{t('sync.webdav.title')}</CardTitle>
+                  <CardDescription>{t('sync.webdav.description')}</CardDescription>
                 </div>
                 <Switch
                   checked={webDavConfig.enabled}
@@ -348,43 +351,43 @@ export default function SyncManager() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="webdav-url">服务器地址 (URL)</Label>
+                <Label htmlFor="webdav-url">{t('sync.webdav.url')}</Label>
                 <ClearableInput
                   id="webdav-url"
-                  placeholder="https://dav.jianguoyun.com/dav/"
+                  placeholder={t('sync.webdav.urlPlaceholder')}
                   value={webDavConfig.url}
                   onChange={(e) => setWebDavConfig({ ...webDavConfig, url: filterChinese(e.target.value) })}
                   onClear={() => setWebDavConfig({ ...webDavConfig, url: '' })}
                 />
                 {webDavUrlInvalidFormat && (
                   <p className="text-xs text-destructive">
-                    请输入有效的 URL (以 http:// 或 https:// 开头)
+                    {t('sync.webdav.invalidUrl')}
                   </p>
                 )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="webdav-user">用户名</Label>
+                  <Label htmlFor="webdav-user">{t('sync.webdav.username')}</Label>
                   <ClearableInput
                     id="webdav-user"
-                    placeholder="User / Email"
+                    placeholder={t('sync.webdav.usernamePlaceholder')}
                     value={webDavConfig.username}
                     onChange={(e) => setWebDavConfig({ ...webDavConfig, username: filterChinese(e.target.value) })}
                     onClear={() => setWebDavConfig({ ...webDavConfig, username: '' })}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="webdav-pass">应用密码</Label>
+                  <Label htmlFor="webdav-pass">{t('sync.webdav.password')}</Label>
                   <PasswordInput
                     id="webdav-pass"
-                    placeholder="Password"
+                    placeholder={t('sync.webdav.passwordPlaceholder')}
                     value={webDavConfig.password}
                     onChange={(e) => setWebDavConfig({ ...webDavConfig, password: filterChinese(e.target.value) })}
                   />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="webdav-max">最多保留备份份数</Label>
+                <Label htmlFor="webdav-max">{t('sync.webdav.maxBackups')}</Label>
                 <Input
                   id="webdav-max"
                   type="number"
@@ -398,20 +401,20 @@ export default function SyncManager() {
                   }}
                 />
                 <p className="text-xs text-muted-foreground">
-                  超过此数量时，将自动删除最旧的备份，默认 30 份。
+                  {t('sync.webdav.maxBackupsDesc')}
                 </p>
               </div>
               <div className="space-y-2">
-                <Label>云端备份列表</Label>
+                <Label>{t('sync.webdav.backupList')}</Label>
                 <div className="flex items-center gap-2">
                   <div className="flex-1">
                     <Select value={selectedBackup} onValueChange={setSelectedBackup}>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="选择要恢复的备份..." />
+                        <SelectValue placeholder={t('sync.webdav.selectPlaceholder')} />
                       </SelectTrigger>
                       <SelectContent>
                         {backupFiles.length === 0 ? (
-                          <div className="p-2 text-center text-sm text-muted-foreground">暂无备份文件</div>
+                          <div className="p-2 text-center text-sm text-muted-foreground">{t('sync.webdav.noBackups')}</div>
                         ) : (
                           backupFiles.map(f => (
                             <SelectItem key={f} value={f}>
@@ -432,7 +435,7 @@ export default function SyncManager() {
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  恢复时优先使用选中的备份，未选择时默认最新一份。
+                  {t('sync.webdav.restoreDesc')}
                 </p>
               </div>
             </CardContent>
@@ -443,21 +446,21 @@ export default function SyncManager() {
                   disabled={!webDavConfig.enabled || !isWebDavFormValid || loading}
                   onClick={handleWebDavBackup}
                 >
-                  <Upload className="mr-2 h-4 w-4" /> 备份
+                  <Upload className="mr-2 h-4 w-4" /> {t('sync.webdav.backup')}
                 </Button>
                 <Button
                   variant="outline"
                   disabled={!webDavConfig.enabled || !isWebDavFormValid || loading}
                   onClick={handleWebDavRestore}
                 >
-                  <Download className="mr-2 h-4 w-4" /> 恢复
+                  <Download className="mr-2 h-4 w-4" /> {t('sync.webdav.restore')}
                 </Button>
               </div>
               <Button onClick={handleSaveWebDav} disabled={loading || !isWebDavFormValid}>
-                {loading ? '保存中...' : (
-                  saveStatus === 'success' ? <><CheckCircle2 className="mr-2 h-4 w-4" /> 已保存</> :
-                    saveStatus === 'error' ? <><AlertCircle className="mr-2 h-4 w-4" /> 失败</> :
-                      <><Save className="mr-2 h-4 w-4" /> 保存配置</>
+                {loading ? t('sync.webdav.saving') : (
+                  saveStatus === 'success' ? <><CheckCircle2 className="mr-2 h-4 w-4" /> {t('sync.webdav.saved')}</> :
+                    saveStatus === 'error' ? <><AlertCircle className="mr-2 h-4 w-4" /> {t('sync.webdav.failed')}</> :
+                      <><Save className="mr-2 h-4 w-4" /> {t('sync.webdav.saveConfig')}</>
                 )}
               </Button>
             </CardFooter>

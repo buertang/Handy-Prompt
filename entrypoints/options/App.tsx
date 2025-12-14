@@ -57,16 +57,17 @@ import CategoryManager from './pages/CategoryManager'
 import SyncManager from './pages/SyncManager'
 import Settings from './pages/Settings'
 import TagManager from './pages/TagManager'
+import { I18nProvider, useI18n, type I18nKey } from '@/components/i18n-provider'
 
 type MenuSubItem = {
-  label: string
+  label: I18nKey
   href: string
   badge?: string
 }
 
 type MenuItem = {
   icon: ComponentType
-  label: string
+  label: I18nKey
 } & (
     | {
       href: string
@@ -79,21 +80,21 @@ type MenuItem = {
 const menuItems: MenuItem[] = [
   {
     icon: ClipboardListIcon,
-    label: '提示词管理',
+    label: 'promptManagement',
     items: [
-      { label: '内容管理', href: '#content' },
-      { label: '分类管理', href: '#category' },
-      { label: '标签管理', href: '#tag' }
+      { label: 'contentManagement', href: '#content' },
+      { label: 'categoryManagement', href: '#category' },
+      { label: 'tagManagement', href: '#tag' }
     ]
   },
   {
     icon: ArrowRightLeftIcon,
-    label: '同步管理',
+    label: 'syncManagement',
     href: '#sync'
   },
   {
     icon: SettingsIcon,
-    label: '设置',
+    label: 'settings',
     href: '#settings'
   }
 ]
@@ -105,8 +106,10 @@ const SidebarGroupedMenuItems = ({
 }: {
   data: MenuItem[]
   groupLabel?: string
-  onItemClick: (label: string, subLabel?: string) => void
+  onItemClick: (label: I18nKey, subLabel?: I18nKey) => void
 }) => {
+  const { t } = useI18n()
+  
   return (
     <SidebarGroup>
       {groupLabel && <SidebarGroupLabel>{groupLabel}</SidebarGroupLabel>}
@@ -119,7 +122,7 @@ const SidebarGroupedMenuItems = ({
                   <CollapsibleTrigger asChild>
                     <SidebarMenuButton>
                       <item.icon />
-                      <span>{item.label}</span>
+                      <span>{t(item.label)}</span>
                       <ChevronRightIcon className='ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90' />
                     </SidebarMenuButton>
                   </CollapsibleTrigger>
@@ -136,7 +139,7 @@ const SidebarGroupedMenuItems = ({
                                 onItemClick(item.label, subItem.label)
                               }}
                             >
-                              {subItem.label}
+                              {t(subItem.label)}
                               {subItem.badge && (
                                 <span className='bg-primary/10 flex h-5 min-w-5 items-center justify-center rounded-full text-xs'>
                                   {subItem.badge}
@@ -164,7 +167,7 @@ const SidebarGroupedMenuItems = ({
                     }}
                   >
                     <item.icon />
-                    <span>{item.label}</span>
+                    <span>{t(item.label)}</span>
                   </a>
                 </SidebarMenuButton>
                 {item.badge && <SidebarMenuBadge className='bg-primary/10 rounded-full'>{item.badge}</SidebarMenuBadge>}
@@ -177,22 +180,23 @@ const SidebarGroupedMenuItems = ({
   )
 }
 
-const ApplicationShell = () => {
-  const [breadcrumbItems, setBreadcrumbItems] = useState<string[]>(['提示词管理', '内容管理'])
+const ApplicationShellContent = () => {
+  const { t } = useI18n()
+  const [breadcrumbItems, setBreadcrumbItems] = useState<I18nKey[]>(['promptManagement', 'contentManagement'])
 
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash
       if (hash === '#category') {
-        setBreadcrumbItems(['提示词管理', '分类管理'])
+        setBreadcrumbItems(['promptManagement', 'categoryManagement'])
       } else if (hash === '#tag') {
-        setBreadcrumbItems(['提示词管理', '标签管理'])
+        setBreadcrumbItems(['promptManagement', 'tagManagement'])
       } else if (hash === '#settings') {
-        setBreadcrumbItems(['设置'])
+        setBreadcrumbItems(['settings'])
       } else if (hash === '#sync') {
-        setBreadcrumbItems(['同步管理'])
+        setBreadcrumbItems(['syncManagement'])
       } else if (hash === '#content' || hash === '') {
-        setBreadcrumbItems(['提示词管理', '内容管理'])
+        setBreadcrumbItems(['promptManagement', 'contentManagement'])
       }
     }
 
@@ -225,7 +229,7 @@ const ApplicationShell = () => {
     return () => mql.removeEventListener('change', handleChange)
   }, [])
 
-  const handleMenuClick = (label: string, subLabel?: string) => {
+  const handleMenuClick = (label: I18nKey, subLabel?: I18nKey) => {
     if (subLabel) {
       setBreadcrumbItems([label, subLabel])
     } else {
@@ -239,17 +243,17 @@ const ApplicationShell = () => {
     const mainLabel = breadcrumbItems[0]
     const subLabel = breadcrumbItems[1]
 
-    if (mainLabel === '提示词管理') {
-      if (subLabel === '内容管理') return <ContentManager />
-      if (subLabel === '分类管理') return <CategoryManager />
-      if (subLabel === '标签管理') return <TagManager />
+    if (mainLabel === 'promptManagement') {
+      if (subLabel === 'contentManagement') return <ContentManager />
+      if (subLabel === 'categoryManagement') return <CategoryManager />
+      if (subLabel === 'tagManagement') return <TagManager />
     }
-    if (mainLabel === '同步管理') {
+    if (mainLabel === 'syncManagement') {
       // 由于SyncManager页面包含所有同步选项，这里简化处理，都显示SyncManager
       // 实际也可以在SyncManager内部通过props控制显示的Tab
       return <SyncManager />
     }
-    if (mainLabel === '设置') {
+    if (mainLabel === 'settings') {
       return <Settings />
     }
 
@@ -306,7 +310,7 @@ const ApplicationShell = () => {
                 <Breadcrumb className='hidden sm:block'>
                   <BreadcrumbList>
                     <BreadcrumbItem className='hidden md:block'>
-                      <BreadcrumbLink href='#'>Home</BreadcrumbLink>
+                      <BreadcrumbLink href='#'>{t('home')}</BreadcrumbLink>
                     </BreadcrumbItem>
                     <BreadcrumbSeparator className='hidden md:block' />
                     {breadcrumbItems.map((item, index) => (
@@ -314,9 +318,9 @@ const ApplicationShell = () => {
                         {index > 0 && <BreadcrumbSeparator />}
                         <BreadcrumbItem>
                           {index === breadcrumbItems.length - 1 ? (
-                            <BreadcrumbPage>{item}</BreadcrumbPage>
+                            <BreadcrumbPage>{t(item)}</BreadcrumbPage>
                           ) : (
-                            <BreadcrumbLink href='#'>{item}</BreadcrumbLink>
+                            <BreadcrumbLink href='#'>{t(item)}</BreadcrumbLink>
                           )}
                         </BreadcrumbItem>
                       </div>
@@ -343,6 +347,14 @@ const ApplicationShell = () => {
       </SidebarProvider>
       <Toaster />
     </div>
+  )
+}
+
+const ApplicationShell = () => {
+  return (
+    <I18nProvider>
+      <ApplicationShellContent />
+    </I18nProvider>
   )
 }
 

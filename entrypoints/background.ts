@@ -1,4 +1,70 @@
 import { db } from '@/lib/db';
+import zh_CN from '@/locales/zh_CN.json';
+import en from '@/locales/en.json';
+
+type Language = 'zh_CN' | 'en';
+const translations: Record<Language, typeof zh_CN> = {
+  zh_CN,
+  en
+};
+
+const STORAGE_KEY = 'handy-prompt-language';
+
+function getTranslation(lang: Language, key: keyof typeof zh_CN) {
+  const value = translations[lang][key];
+  return typeof value === 'string' ? value : key;
+}
+
+async function updateContextMenus() {
+  let lang: Language = 'zh_CN'; // Default
+  
+  try {
+    const syncStored = await browser.storage.sync.get(STORAGE_KEY);
+    if (syncStored[STORAGE_KEY]) {
+      lang = syncStored[STORAGE_KEY] as Language;
+    } else {
+      const localStored = await browser.storage.local.get(STORAGE_KEY);
+      if (localStored[STORAGE_KEY]) {
+        lang = localStored[STORAGE_KEY] as Language;
+      } else {
+        const uiLang = browser.i18n.getUILanguage();
+        if (uiLang.startsWith('en')) {
+          lang = 'en';
+        }
+      }
+    }
+  } catch (e) {
+    console.error('Failed to get language for context menus', e);
+  }
+
+  // Remove existing menus to avoid duplicates
+  browser.contextMenus.removeAll();
+
+  browser.contextMenus.create({
+    id: 'manage_prompts',
+    title: getTranslation(lang, 'contextManagePrompts'),
+    contexts: ['action']
+  });
+
+  browser.contextMenus.create({
+    id: 'manage_categories',
+    title: getTranslation(lang, 'contextManageCategories'),
+    contexts: ['action']
+  });
+
+  browser.contextMenus.create({
+    id: 'manage_tags',
+    title: getTranslation(lang, 'contextManageTags'),
+    contexts: ['action']
+  });
+
+  // 右键保存选中文本
+  browser.contextMenus.create({
+    id: 'save_selection',
+    title: getTranslation(lang, 'contextSaveSelection'),
+    contexts: ['selection']
+  });
+}
 
 export default defineBackground(() => {
   console.log('Background script loaded!', { id: browser.runtime.id });
@@ -113,35 +179,18 @@ export default defineBackground(() => {
     }
   });
 
+  // Listen for storage changes to update context menus
+  browser.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === 'sync' || areaName === 'local') {
+      if (changes[STORAGE_KEY]) {
+        updateContextMenus();
+      }
+    }
+  });
+
   // Create context menus on install
   browser.runtime.onInstalled.addListener(() => {
-    // Remove existing menus to avoid duplicates
-    browser.contextMenus.removeAll();
-
-    browser.contextMenus.create({
-      id: 'manage_prompts',
-      title: '管理提示词',
-      contexts: ['action']
-    });
-
-    browser.contextMenus.create({
-      id: 'manage_categories',
-      title: '管理分类',
-      contexts: ['action']
-    });
-
-    browser.contextMenus.create({
-      id: 'manage_tags',
-      title: '管理标签',
-      contexts: ['action']
-    });
-
-    // 右键保存选中文本
-    browser.contextMenus.create({
-      id: 'save_selection',
-      title: '保存为提示词',
-      contexts: ['selection']
-    });
+    updateContextMenus();
   });
 
   // Handle menu clicks

@@ -30,6 +30,7 @@ import { exportToJson } from '@/lib/export'
 import { importFromUrl, handleFileSelect } from '@/lib/import'
 import { ImportUrlDialog } from '@/components/import-url-dialog'
 import { useRef } from 'react'
+import { useI18n } from '@/components/i18n-provider'
 
 import {
   DropdownMenu,
@@ -41,6 +42,7 @@ import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 
 export default function CategoryManager() {
+  const { t } = useI18n()
   const [searchQuery, setSearchQuery] = useState('')
   const [sortOption, setSortOption] = useState<'name' | 'promptCount' | 'createTime' | 'lastModified'>('createTime')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -126,7 +128,7 @@ export default function CategoryManager() {
 
   const handleTogglePinned = async (category: Category) => {
     await db.categories.update(category.id, { isPinned: !category.isPinned })
-    toast.success(category.isPinned ? '已取消置顶' : '已置顶')
+    toast.success(category.isPinned ? t('common.unpin') : t('common.pin'))
   }
 
   const handleToggleEnabled = async (category: Category) => {
@@ -165,7 +167,9 @@ export default function CategoryManager() {
       }
     })
 
-    toast.success(newEnabled ? '已启用，并尝试启用关联提示词' : '已停用，并停用关联提示词')
+    const action = newEnabled ? t('common.enable') : t('common.disable')
+    const effect = newEnabled ? t('common.enable') : t('common.disable')
+    toast.success(t('category.toggleSuccess').replace('$1', action).replace('$2', effect))
   }
 
   // Bulk Actions
@@ -207,7 +211,7 @@ export default function CategoryManager() {
         }
       }
     })
-    toast.success('一键启用完成')
+    toast.success(t('category.bulkEnableSuccess'))
   }
 
   const handleBulkDisable = async () => {
@@ -219,7 +223,7 @@ export default function CategoryManager() {
       // Yes, prompts depend on category.
       await db.prompts.toCollection().modify({ enabled: false })
     })
-    toast.success('一键停用完成')
+    toast.success(t('category.bulkDisableSuccess'))
   }
 
   const handleSave = async (categoryData: Category) => {
@@ -248,19 +252,19 @@ export default function CategoryManager() {
 
       if (editingCategory) {
         await db.categories.put(categoryToSave)
-        toast.success('分类更新成功')
+        toast.success(t('category.updateSuccess'))
       } else {
         await db.categories.add(categoryToSave)
-        toast.success('分类创建成功')
+        toast.success(t('category.createSuccess'))
       }
       setIsDialogOpen(false)
       setEditingCategory(null)
     } catch (error: any) {
       if (error.name === 'ConstraintError') {
-        toast.error('分类名称已存在，请使用其他名称。')
+        toast.error(t('category.nameExists'))
       } else {
         console.error('Failed to save category:', error)
-        toast.error('保存失败，请重试。')
+        toast.error(t('common.error'))
       }
     }
   }
@@ -302,12 +306,12 @@ export default function CategoryManager() {
         await db.categories.delete(categoryToDelete.id)
       })
 
-      toast.success('分类删除成功')
+      toast.success(t('category.deleteSuccess'))
       setDeleteDialogOpen(false)
       setCategoryToDelete(null)
     } catch (error) {
       console.error('Failed to delete category:', error)
-      toast.error('删除分类失败')
+      toast.error(t('common.error'))
     }
   }
 
@@ -316,16 +320,16 @@ export default function CategoryManager() {
       {/* Header */}
       <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
-          <h1 className="text-2xl font-bold">分类管理</h1>
+          <h1 className="text-2xl font-bold">{t('category.title')}</h1>
           <div className="flex flex-wrap gap-2 text-sm">
-            <Button variant="outline" size="sm" className="h-6 text-xs" onClick={handleBulkEnable}>一键启用</Button>
-            <Button variant="outline" size="sm" className="h-6 text-xs" onClick={handleBulkDisable}>一键停用</Button>
-            <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-200">总计 {totalCategories} 个分类</Badge>
-            <Badge variant="outline" className="bg-[#AFC2DB]/20 text-[#6B85A8] border-[#AFC2DB]/40">启用 {enabledCategories} 个</Badge>
+            <Button variant="outline" size="sm" className="h-6 text-xs" onClick={handleBulkEnable}>{t('common.bulkEnable')}</Button>
+            <Button variant="outline" size="sm" className="h-6 text-xs" onClick={handleBulkDisable}>{t('common.bulkDisable')}</Button>
+            <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-200">{t('category.totalCount').replace('$1', totalCategories.toString())}</Badge>
+            <Badge variant="outline" className="bg-[#AFC2DB]/20 text-[#6B85A8] border-[#AFC2DB]/40">{t('category.enabledCount').replace('$1', enabledCategories.toString())}</Badge>
           </div>
         </div>
         <p className="text-muted-foreground text-sm">
-          在这里，您可以管理您的分类，包括添加、编辑、删除和启用/停用分类。
+          {t('category.subtitle')}
         </p>
       </div>
 
@@ -335,7 +339,7 @@ export default function CategoryManager() {
           <div className="relative min-w-[160px] sm:w-[200px] lg:w-[240px]">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="搜索分类..."
+              placeholder={t('category.searchPlaceholder')}
               className="pl-8 h-9"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -348,22 +352,22 @@ export default function CategoryManager() {
               <Button variant="outline" size="sm" className="h-9 w-9 xl:w-[90px] p-0 xl:px-3 justify-center xl:justify-between shrink-0">
                 <span className="flex items-center justify-center">
                   <ArrowUpDown className="h-4 w-4 opacity-50" />
-                  <span className="hidden xl:inline ml-1.5">排序</span>
+                  <span className="hidden xl:inline ml-1.5">{t('common.sort')}</span>
                 </span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => setSortOption('name')}>
-                名称 {sortOption === 'name' && '✓'}
+                {t('common.name')} {sortOption === 'name' && '✓'}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setSortOption('promptCount')}>
-                提示词数量 {sortOption === 'promptCount' && '✓'}
+                {t('common.promptCount')} {sortOption === 'promptCount' && '✓'}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setSortOption('createTime')}>
-                创建时间 {sortOption === 'createTime' && '✓'}
+                {t('common.createTime')} {sortOption === 'createTime' && '✓'}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setSortOption('lastModified')}>
-                最近修改 {sortOption === 'lastModified' && '✓'}
+                {t('common.lastModified')} {sortOption === 'lastModified' && '✓'}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -380,27 +384,27 @@ export default function CategoryManager() {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="h-9 w-9 xl:w-auto p-0 xl:px-3 shrink-0">
                 <Download className="h-4 w-4 xl:mr-1.5" />
-                <span className="hidden xl:inline text-xs">导入</span>
+                <span className="hidden xl:inline text-xs">{t('common.import')}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
-                本地导入
+                {t('common.localImport')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setImportUrlDialogOpen(true)}>
-                URL 导入
+                {t('common.urlImport')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
           <Button variant="outline" size="sm" className="h-9 w-9 xl:w-auto p-0 xl:px-3 shrink-0" onClick={() => exportToJson(categories, 'categories')}>
             <Upload className="h-4 w-4 xl:mr-1.5" />
-            <span className="hidden xl:inline text-xs">导出</span>
+            <span className="hidden xl:inline text-xs">{t('common.export')}</span>
           </Button>
 
           <Button size="sm" onClick={handleAdd} className="h-9 w-9 xl:w-auto p-0 xl:px-3 shrink-0">
             <Plus className="h-4 w-4 xl:mr-1.5" />
-            <span className="hidden xl:inline text-xs">新建</span>
+            <span className="hidden xl:inline text-xs">{t('common.new')}</span>
           </Button>
         </div>
       </div>
@@ -417,7 +421,7 @@ export default function CategoryManager() {
                   <CardTitle className="text-lg font-bold">{category.name}</CardTitle>
                   {category.isDefault && (
                     <Badge variant="secondary" className="text-[10px] h-5 px-1.5 bg-secondary text-secondary-foreground border-border">
-                      默认
+                      {t('common.default')}
                     </Badge>
                   )}
                 </div>
@@ -427,7 +431,7 @@ export default function CategoryManager() {
                   className={cn("h-6 w-6 -mt-1 -mr-1", category.isPinned ? "text-primary" : "text-muted-foreground transition-opacity", category.isDefault && "opacity-50 cursor-not-allowed hover:bg-transparent hover:text-primary")}
                   onClick={() => !category.isDefault && handleTogglePinned(category)}
                   disabled={category.isDefault}
-                  title={category.isDefault ? "默认分类始终置顶" : (category.isPinned ? "取消置顶" : "置顶")}
+                  title={category.isDefault ? t('category.defaultCategory') : (category.isPinned ? t('common.unpin') : t('common.pin'))}
                 >
                   {category.isPinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
                 </Button>
@@ -439,14 +443,14 @@ export default function CategoryManager() {
                   <p
                     className="text-sm text-muted-foreground line-clamp-1 mb-6 leading-relaxed cursor-help"
                   >
-                    {category.description || '暂无描述'}
+                    {category.description || t('category.noDescription')}
                   </p>
                 </HoverCardTrigger>
                 <HoverCardContent className="w-80 p-0 overflow-hidden">
                   <ScrollArea className="max-h-[200px] w-full">
                     <div className="space-y-1 p-4">
                       <p className="text-sm text-muted-foreground break-words break-all whitespace-pre-wrap">
-                        {category.description || '暂无描述'}
+                        {category.description || t('category.noDescription')}
                       </p>
                     </div>
                   </ScrollArea>
@@ -455,7 +459,7 @@ export default function CategoryManager() {
               <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                 <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground bg-secondary/50 px-2.5 py-1.5 rounded-md">
                   <FileText className="w-3.5 h-3.5" />
-                  <span>{category.promptCount} 个提示词</span>
+                  <span>{category.promptCount} {t('common.promptCount')}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   {category.isDefault ? (
@@ -466,7 +470,7 @@ export default function CategoryManager() {
                         className="data-[state=checked]:bg-primary scale-90 origin-right"
                       />
                       <span className="text-xs font-medium text-muted-foreground min-w-[36px]">
-                        已启用
+                        {t('common.enabled')}
                       </span>
                     </div>
                   ) : (
@@ -477,7 +481,7 @@ export default function CategoryManager() {
                         className="data-[state=checked]:bg-primary scale-90 origin-right"
                       />
                       <span className="text-xs font-medium text-muted-foreground min-w-[36px]">
-                        {category.enabled ? '已启用' : '已停用'}
+                        {category.enabled ? t('common.enabled') : t('common.disabled')}
                       </span>
                     </>
                   )}
@@ -486,11 +490,11 @@ export default function CategoryManager() {
               <div className='flex flex-col gap-1 text-xs text-muted-foreground mb-3'>
                 <div className='flex items-center gap-1.5'>
                   <Calendar className="h-3" />
-                  <span>创建: {category.createTime}</span>
+                  <span>{t('common.createTime')}: {category.createTime}</span>
                 </div>
                 <div className='flex items-center gap-1.5'>
                   <Clock className="h-3" />
-                  <span>修改: {category.lastModified}</span>
+                  <span>{t('common.lastModified')}: {category.lastModified}</span>
                 </div>
               </div>
             </CardContent>
@@ -502,7 +506,7 @@ export default function CategoryManager() {
                 onClick={() => !category.isDefault && handleEdit(category)}
                 disabled={category.isDefault}
               >
-                <Pencil className="w-3.5 h-3.5 mr-1.5" /> 编辑
+                <Pencil className="w-3.5 h-3.5 mr-1.5" /> {t('common.edit')}
               </Button>
               {!category.isDefault && (
                 <Button
@@ -511,7 +515,7 @@ export default function CategoryManager() {
                   className="h-8 px-3 text-muted-foreground/70 hover:text-destructive hover:bg-destructive/10"
                   onClick={() => initiateDelete(category)}
                 >
-                  <Trash2 className="w-3.5 h-3.5 mr-1.5" /> 删除
+                  <Trash2 className="w-3.5 h-3.5 mr-1.5" /> {t('common.delete')}
                 </Button>
               )}
             </CardFooter>
@@ -531,23 +535,23 @@ export default function CategoryManager() {
       <DeleteConfirmDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
-        title={`删除分类: ${categoryToDelete?.name}`}
-        description={`您正在删除一个分类，该分类下包含 ${categoriesWithStats.find(c => c.id === categoryToDelete?.id)?.promptCount || 0} 个提示词。请选择如何处理这些提示词。`}
+        title={t('category.deleteDialog.title').replace('$1', categoryToDelete?.name || '')}
+        description={t('category.deleteDialog.description').replace('$1', (categoriesWithStats.find(c => c.id === categoryToDelete?.id)?.promptCount || 0).toString())}
         onConfirm={confirmDelete}
       >
         <RadioGroup value={deleteOption} onValueChange={(v) => setDeleteOption(v as 'move' | 'delete')}>
           <div className="flex items-center space-x-2 mb-4">
             <RadioGroupItem value="move" id="move" />
             <Label htmlFor="move" className="cursor-pointer">
-              <span className="font-bold block">移动到默认分类 (推荐)</span>
-              <span className="text-xs text-muted-foreground">将该分类下的所有提示词移动到"默认"分类中，保留数据。</span>
+              <span className="font-bold block">{t('category.deleteDialog.moveOption')}</span>
+              <span className="text-xs text-muted-foreground">{t('category.deleteDialog.moveDesc')}</span>
             </Label>
           </div>
           <div className="flex items-center space-x-2">
             <RadioGroupItem value="delete" id="delete" />
             <Label htmlFor="delete" className="cursor-pointer">
-              <span className="font-bold block text-destructive">删除所有提示词</span>
-              <span className="text-xs text-muted-foreground">永久删除该分类下的所有提示词，无法恢复。</span>
+              <span className="font-bold block text-destructive">{t('category.deleteDialog.deleteOption')}</span>
+              <span className="text-xs text-muted-foreground">{t('category.deleteDialog.deleteDesc')}</span>
             </Label>
           </div>
         </RadioGroup>

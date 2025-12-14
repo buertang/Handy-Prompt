@@ -4,7 +4,7 @@ import path from 'path';
 
 // See https://wxt.dev/api/config.html
 export default defineConfig({
-  modules: ['@wxt-dev/module-react'],
+  modules: ['@wxt-dev/module-react', '@wxt-dev/i18n/module'],
   alias: {
     '@': path.resolve(__dirname, './'),
   },
@@ -12,15 +12,9 @@ export default defineConfig({
     plugins: [tailwindcss()],
   }),
   manifest: {
-    name: 'Handy Prompt',
-    description: '做自己随手可用的prompt工具',
-    // permissions: ['sidePanel', 'storage'],
-    // side_panel: {
-    //   default_path: 'sidepanel.html'
-    // },
-    // action: {
-    //   default_title: 'Open Sidepanel'
-    // }
+    default_locale: 'zh_CN',
+    name: '__MSG_extName__',
+    description: '__MSG_extDesc__',
     permissions: ['storage', 'contextMenus'],
     host_permissions: [
       '<all_urls>',
@@ -31,14 +25,14 @@ export default defineConfig({
           "default": "Ctrl+Shift+P",
           "mac": "Command+Shift+P"
         },
-        "description": "打开提示词选择弹窗"
+        "description": "__MSG_openPromptPicker__"
       },
       "save-selected-text": {
         "suggested_key": {
           "default": "Ctrl+Shift+S",
           "mac": "Command+Shift+S"
         },
-        "description": "保存选中的文本作为提示词"
+        "description": "__MSG_saveSelectedText__"
       }
     }
   },

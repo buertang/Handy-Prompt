@@ -19,8 +19,11 @@ import LogoSvg from '@/assets/logo.svg';
 import { useSettings } from '@/hooks/use-settings';
 import { useTheme } from '@/hooks/use-theme';
 import { browser } from 'wxt/browser';
+import { useI18n } from '@/components/i18n-provider';
 
 function App() {
+  const { t } = useI18n();
+
   const prompts = useLiveQuery(async () => {
     try {
       // Fallback to simpler query to avoid TS/Index issues
@@ -155,40 +158,40 @@ function App() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <FolderIcon className="w-4 h-4" />
-                <CardTitle className="text-sm font-medium">提示词库</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('popup.library')}</CardTitle>
               </div>
               <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full">
                 <span className="font-bold text-primary">{promptCount}</span>
-                <span>个启用</span>
+                <span>{t('popup.enabledCountSuffix')}</span>
               </div>
             </div>
           </CardHeader>
           <CardContent className="p-3 pt-2">
             <Button
-              className="w-full font-medium shadow-sm"
+              className="w-full font-medium shadow-sm transition-none"
               size="default"
               onClick={handleManagePrompts}
             >
-              管理提示词
+              {t('contextManagePrompts')}
             </Button>
             <div className="grid grid-cols-2 gap-2 mt-2">
               <Button
                 variant="outline"
                 size="sm"
-                className="w-full text-xs h-8"
+                className="w-full text-xs h-8 transition-none"
                 onClick={() => openOptionsPage('#category')}
               >
                 <Layers className="w-3.5 h-3.5 mr-1.5" />
-                管理分类
+                {t('contextManageCategories')}
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                className="w-full text-xs h-8"
+                className="w-full text-xs h-8 transition-none"
                 onClick={() => openOptionsPage('#tag')}
               >
                 <Tags className="w-3.5 h-3.5 mr-1.5" />
-                管理标签
+                {t('contextManageTags')}
               </Button>
             </div>
           </CardContent>
@@ -197,7 +200,7 @@ function App() {
         {/* Usage Instructions Card */}
         <Card className="bg-card/50 shadow-sm border-border/50 gap-3 py-3">
           <CardHeader className="p-3 pb-1">
-            <CardTitle className="text-sm font-medium text-muted-foreground">使用说明</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t('popup.instructions')}</CardTitle>
           </CardHeader>
           <CardContent className="p-3 pt-2 space-y-3 text-sm">
             <div className="flex items-start gap-3">
@@ -205,9 +208,20 @@ function App() {
                 <CommandIcon className="w-4 h-4 text-primary" />
               </div>
               <div className="space-y-1">
-                <p className="font-medium">快捷输入</p>
+                <p className="font-medium">{t('popup.quickInput')}</p>
                 <p className="text-muted-foreground text-xs leading-relaxed">
-                  任意输入框中输入 <span className="bg-muted px-1.5 py-0.5 rounded text-foreground font-mono">/p</span>
+                  {t('popup.quickInputDesc').split('<0>').map((part, i) => {
+                    if (i === 1) {
+                      const [content, rest] = part.split('</0>');
+                      return (
+                        <span key={i}>
+                          <span className="bg-muted px-1.5 py-0.5 rounded text-foreground font-mono">{content}</span>
+                          {rest}
+                        </span>
+                      );
+                    }
+                    return part;
+                  })}
                 </p>
               </div>
             </div>
@@ -217,9 +231,9 @@ function App() {
                 <MousePointerClickIcon className="w-4 h-4 text-primary" />
               </div>
               <div className="space-y-1">
-                <p className="font-medium">右键保存</p>
+                <p className="font-medium">{t('popup.contextSave')}</p>
                 <p className="text-muted-foreground text-xs leading-relaxed">
-                  选中文本后单击右键菜单选择"保存该提示词"
+                  {t('popup.contextSaveDesc')}
                 </p>
               </div>
             </div>
@@ -233,20 +247,20 @@ function App() {
               <AlertTriangleIcon className="h-4 w-4 text-amber-600 dark:text-amber-500 shrink-0" />
               <div className="space-y-2.5">
                 <p className="text-xs font-medium text-amber-800 dark:text-amber-200 leading-tight">
-                  未检测到快捷键配置，可能影响使用体验。
+                  {t('popup.shortcutWarning')}
                 </p>
                 <div className="flex gap-3">
                   <button
                     onClick={handleConfigureShortcuts}
                     className="text-[11px] font-medium text-amber-700 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300 underline underline-offset-2"
                   >
-                    前往设置快捷键
+                    {t('popup.configureShortcuts')}
                   </button>
                   <button
                     onClick={handleDismissWarning}
                     className="text-[11px] font-medium text-amber-700/70 hover:text-amber-800 dark:text-amber-400/70 dark:hover:text-amber-300"
                   >
-                    不再提醒
+                    {t('popup.dismissWarning')}
                   </button>
                 </div>
               </div>

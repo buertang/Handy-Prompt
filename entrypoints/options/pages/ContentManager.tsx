@@ -50,8 +50,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { useI18n } from '@/components/i18n-provider'
 
 export default function ContentManager() {
+  const { t } = useI18n();
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [sortOption, setSortOption] = useState<'title' | 'createTime' | 'lastModified' | 'category'>('createTime')
@@ -162,12 +164,12 @@ export default function ContentManager() {
         }
       }
     })
-    toast.success(`已启用 ${updatedCount} 个提示词`)
+    toast.success(t('content.bulkEnableSuccess').replace('$1', updatedCount.toString()))
   }
 
   const handleBulkDisable = async () => {
     const count = await db.prompts.filter(p => p.enabled === true).modify({ enabled: false })
-    toast.success(`已停用 ${count} 个提示词`)
+    toast.success(t('content.bulkDisableSuccess').replace('$1', count.toString()))
   }
 
   // Helper to check effective enabled status
@@ -213,7 +215,6 @@ export default function ContentManager() {
         // 所以我们需要构造一个临时的 partial prompt 或者通过其他方式传递
         // 简单起见，我们在 setIsDialogOpen(true) 之后，PromptDialog 内部并不容易直接获取这个值
         // 除非我们把 defaultPrompt 传进去，或者修改 editingPrompt 的类型允许 Partial
-
         // 让我们创建一个临时的“新”prompt对象作为初始值
         const newPrompt: any = {
           title: data.pendingPromptContent.slice(0, 20) + (data.pendingPromptContent.length > 20 ? '...' : ''),
@@ -302,8 +303,8 @@ export default function ContentManager() {
       if (a.isPinned !== b.isPinned) return (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0);
       return a.name.localeCompare(b.name, 'zh-CN');
     });
-    return [{ id: 'all', name: '所有分类' }, ...sorted]
-  }, [categories])
+    return [{ id: 'all', name: t('content.allCategories') }, ...sorted]
+  }, [categories, t])
 
   const gridColsClass = {
     1: 'grid-cols-1',
@@ -320,7 +321,7 @@ export default function ContentManager() {
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text)
-    toast.success('已复制到剪贴板')
+    toast.success(t('content.copySuccess'))
   }
 
   const handleEdit = (prompt: Prompt) => {
@@ -352,10 +353,10 @@ export default function ContentManager() {
 
     if (editingPrompt) {
       await db.prompts.put(prompt)
-      toast.success('提示词更新成功')
+      toast.success(t('content.updateSuccess'))
     } else {
       await db.prompts.add(prompt)
-      toast.success('提示词创建成功')
+      toast.success(t('content.createSuccess'))
     }
     setIsDialogOpen(false)
     setEditingPrompt(null)
@@ -369,7 +370,7 @@ export default function ContentManager() {
   const confirmDelete = async () => {
     if (promptToDelete) {
       await db.prompts.delete(promptToDelete)
-      toast.success('提示词删除成功')
+      toast.success(t('content.deleteSuccess'))
       setDeleteDialogOpen(false)
       setPromptToDelete(null)
     }
@@ -393,26 +394,26 @@ export default function ContentManager() {
       }
 
       if (categoryDisabled && tagsDisabled) {
-        toast.error('当前提示词的分类和标签未启用')
+        toast.error(t('content.categoryAndTagDisabled'))
         return
       }
       if (categoryDisabled) {
-        toast.error('当前提示词分类未启用')
+        toast.error(t('content.categoryDisabled'))
         return
       }
       if (tagsDisabled) {
-        toast.error('当前提示词标签未启用')
+        toast.error(t('content.tagDisabled'))
         return
       }
     }
 
     await db.prompts.update(id, { enabled })
-    toast.success(enabled ? '已启用' : '已停用')
+    toast.success(enabled ? t('content.enableSuccess') : t('content.disableSuccess'))
   }
 
   const handleTogglePinned = async (prompt: Prompt) => {
     await db.prompts.update(prompt.id, { isPinned: !prompt.isPinned })
-    toast.success(prompt.isPinned ? '已取消置顶' : '已置顶')
+    toast.success(prompt.isPinned ? t('content.unpinSuccess') : t('content.pinSuccess'))
   }
 
 
@@ -421,15 +422,15 @@ export default function ContentManager() {
       {/* Header Stats */}
       <div className='flex flex-col gap-4'>
         <div className='flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4'>
-          <h1 className='text-2xl font-bold'>提示词库</h1>
+          <h1 className='text-2xl font-bold'>{t('content.title')}</h1>
           <div className='flex flex-wrap gap-2 text-sm'>
-            <Button variant="outline" size="sm" className="h-6 text-xs" onClick={handleBulkEnable}>一键启用</Button>
-            <Button variant="outline" size="sm" className="h-6 text-xs" onClick={handleBulkDisable}>一键停用</Button>
-            <Badge variant="outline" className='bg-slate-100 text-slate-700 border-slate-200'>总计 {prompts.length} 个提示词</Badge>
-            <Badge variant="outline" className='bg-[#AFC2DB]/20 text-[#6B85A8] border-[#AFC2DB]/40'>启用 {prompts.filter(p => p.enabled).length} 个</Badge>
+            <Button variant="outline" size="sm" className="h-6 text-xs" onClick={handleBulkEnable}>{t('common.bulkEnable')}</Button>
+            <Button variant="outline" size="sm" className="h-6 text-xs" onClick={handleBulkDisable}>{t('common.bulkDisable')}</Button>
+            <Badge variant="outline" className='bg-slate-100 text-slate-700 border-slate-200'>{t('content.totalPrompts').replace('$1', prompts.length.toString())}</Badge>
+            <Badge variant="outline" className='bg-[#AFC2DB]/20 text-[#6B85A8] border-[#AFC2DB]/40'>{t('content.enabledCount').replace('$1', prompts.filter(p => p.enabled).length.toString())}</Badge>
           </div>
         </div>
-        <p className='text-muted-foreground text-sm'>在网页输入框中通过指令快速插入预设的 Prompt 内容。</p>
+        <p className='text-muted-foreground text-sm'>{t('content.subtitle')}</p>
       </div>
 
       {/* Toolbar */}
@@ -438,7 +439,7 @@ export default function ContentManager() {
           <div className='relative min-w-[160px] sm:w-[200px] lg:w-[240px]'>
             <Search className='absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground' />
             <Input
-              placeholder='搜索...'
+              placeholder={t('common.search')}
               className='pl-8 h-9'
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
@@ -448,7 +449,7 @@ export default function ContentManager() {
             <DropdownMenuTrigger asChild>
               <Button variant='outline' size='sm' className='h-9 w-9 xl:w-[110px] p-0 xl:px-3 justify-center xl:justify-between shrink-0'>
                 <span className="hidden xl:inline truncate max-w-[70px]">
-                  {selectedCategory === 'all' ? '所有分类' : categoryMap[selectedCategory]?.name || '未知分类'}
+                  {selectedCategory === 'all' ? t('content.allCategories') : categoryMap[selectedCategory]?.name || t('content.unknownCategory')}
                 </span>
                 <Rows3 className='h-4 w-4 opacity-50 xl:ml-1.5' />
               </Button>
@@ -467,22 +468,22 @@ export default function ContentManager() {
               <Button variant="outline" size='sm' className="h-9 w-9 xl:w-[90px] p-0 xl:px-3 justify-center xl:justify-between shrink-0">
                 <span className="flex items-center justify-center">
                   <ArrowUpDown className="h-4 w-4 opacity-50" />
-                  <span className="hidden xl:inline ml-1.5">排序</span>
+                  <span className="hidden xl:inline ml-1.5">{t('common.sort')}</span>
                 </span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => setSortOption('title')}>
-                标题 {sortOption === 'title' && '✓'}
+                {t('content.sortByTitle')} {sortOption === 'title' && '✓'}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setSortOption('createTime')}>
-                创建时间 {sortOption === 'createTime' && '✓'}
+                {t('common.createTime')} {sortOption === 'createTime' && '✓'}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setSortOption('lastModified')}>
-                最近修改 {sortOption === 'lastModified' && '✓'}
+                {t('common.lastModified')} {sortOption === 'lastModified' && '✓'}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setSortOption('category')}>
-                分类 {sortOption === 'category' && '✓'}
+                {t('content.category')} {sortOption === 'category' && '✓'}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -500,7 +501,7 @@ export default function ContentManager() {
                     "px-2 py-0.5 text-[10px] font-medium rounded transition-colors hover:bg-muted min-w-[20px]",
                     columns === col && "bg-primary text-primary-foreground hover:bg-primary/90"
                   )}
-                  title={`${col}栏视图`}
+                  title={t('content.columns').replace('$1', col.toString())}
                 >
                   {col}
                 </button>
@@ -519,27 +520,27 @@ export default function ContentManager() {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="h-9 w-9 xl:w-auto p-0 xl:px-3 shrink-0">
                 <Download className="h-4 w-4 xl:mr-1.5" />
-                <span className="hidden xl:inline text-xs">导入</span>
+                <span className="hidden xl:inline text-xs">{t('common.import')}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
-                本地导入
+                {t('common.localImport')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setImportUrlDialogOpen(true)}>
-                URL 导入
+                {t('common.urlImport')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
           <Button variant="outline" size="sm" className="h-9 w-9 xl:w-auto p-0 xl:px-3 shrink-0" onClick={() => exportToJson(prompts, 'library')}>
             <Upload className="h-4 w-4 xl:mr-1.5" />
-            <span className="hidden xl:inline text-xs">导出</span>
+            <span className="hidden xl:inline text-xs">{t('common.export')}</span>
           </Button>
 
           <Button size='sm' onClick={handleAdd} className="h-9 w-9 xl:w-auto p-0 xl:px-3 shrink-0">
             <Plus className='h-4 w-4 xl:mr-1.5' />
-            <span className="hidden xl:inline text-xs">新建</span>
+            <span className="hidden xl:inline text-xs">{t('common.new')}</span>
           </Button>
         </div>
       </div>
@@ -557,7 +558,7 @@ export default function ContentManager() {
                   <div className='shrink-0'>
                     <div className='flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-md border'>
                       <span className={cn('w-2 h-2 rounded-full', getCategoryColor(prompt.categoryId))}></span>
-                      {categoryMap[prompt.categoryId]?.name || '未知'}
+                      {categoryMap[prompt.categoryId]?.name || t('content.unknownCategory')}
                     </div>
                   </div>
                 </div>
@@ -592,22 +593,22 @@ export default function ContentManager() {
               <div className='flex flex-col gap-1 text-xs text-muted-foreground'>
                 <div className='flex items-center gap-1.5'>
                   <Calendar className="h-3.5 w-3.5" />
-                  <span>创建于: {prompt.createTime}</span>
+                  <span>{t('common.createdOn').replace('$1', prompt.createTime || '')}</span>
                 </div>
                 <div className='flex items-center gap-1.5'>
                   <Clock className="h-3.5 w-3.5" />
-                  <span>修改于: {prompt.lastModified}</span>
+                  <span>{t('common.modifiedOn').replace('$1', prompt.lastModified || '')}</span>
                 </div>
                 {(prompt.author || prompt.source) && (
                   <div className='flex items-center gap-3 mt-1 pt-1 border-t border-dashed'>
                     {prompt.author && (
-                      <div className='flex items-center gap-1.5' title="作者">
+                      <div className='flex items-center gap-1.5' title={t('content.author')}>
                         <User className="h-3.5 w-3.5" />
                         <span>{prompt.author}</span>
                       </div>
                     )}
                     {prompt.source && (
-                      <div className='flex items-center gap-1.5' title="来源">
+                      <div className='flex items-center gap-1.5' title={t('content.source')}>
                         <Globe className="h-3.5 w-3.5" />
                         <span>{prompt.source}</span>
                       </div>
@@ -623,25 +624,25 @@ export default function ContentManager() {
                   onCheckedChange={(checked) => handleToggleEnabled(prompt.id, checked)}
                   className="scale-90 origin-left shrink-0"
                 />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">{prompt.enabled ? '已启用' : '已禁用'}</span>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">{prompt.enabled ? t('common.enabled') : t('common.disabled')}</span>
               </div>
               <div className="flex gap-1.5 opacity-100 transition-opacity w-full justify-end">
                 {layoutMode === 'dropdown' ? (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline" size="sm" className="h-8 px-2 text-xs">
-                        操作 <MoreHorizontal className="ml-1 h-3.5 w-3.5" />
+                        {t('common.actions')} <MoreHorizontal className="ml-1 h-3.5 w-3.5" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => handleTogglePinned(prompt)}>
                         {prompt.isPinned ? <PinOff className="mr-2 h-4 w-4" /> : <Pin className="mr-2 h-4 w-4" />}
-                        {prompt.isPinned ? '取消置顶' : '置顶'}
+                        {prompt.isPinned ? t('common.unpin') : t('common.pin')}
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleCopy(prompt.content)}><Copy className="mr-2 h-4 w-4" /> 复制</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleEdit(prompt)}><Pencil className="mr-2 h-4 w-4" /> 编辑</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleCopy(prompt.content)}><Copy className="mr-2 h-4 w-4" /> {t('common.copy')}</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleEdit(prompt)}><Pencil className="mr-2 h-4 w-4" /> {t('common.edit')}</DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-muted-foreground hover:text-destructive focus:text-destructive hover:bg-destructive/10 focus:bg-destructive/10" onClick={() => handleDelete(prompt.id)}><Trash2 className="mr-2 h-4 w-4" /> 删除</DropdownMenuItem>
+                      <DropdownMenuItem className="text-muted-foreground hover:text-destructive focus:text-destructive hover:bg-destructive/10 focus:bg-destructive/10" onClick={() => handleDelete(prompt.id)}><Trash2 className="mr-2 h-4 w-4" /> {t('common.delete')}</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 ) : (
@@ -651,29 +652,29 @@ export default function ContentManager() {
                       size="sm"
                       className={cn("h-8 px-2 text-xs flex items-center gap-1", prompt.isPinned && "text-primary border-transparent bg-primary/10")}
                       onClick={() => handleTogglePinned(prompt)}
-                      title={prompt.isPinned ? "取消置顶" : "置顶"}
+                      title={prompt.isPinned ? t('common.unpin') : t('common.pin')}
                     >
                       {prompt.isPinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
                       {layoutMode === 'full' && (
-                        <span>{prompt.isPinned ? "取消置顶" : "置顶"}</span>
+                        <span>{prompt.isPinned ? t('common.unpin') : t('common.pin')}</span>
                       )}
                     </Button>
-                    <Button variant="outline" size="sm" className="h-8 px-2 text-xs flex items-center gap-1" onClick={() => handleCopy(prompt.content)} title="复制">
+                    <Button variant="outline" size="sm" className="h-8 px-2 text-xs flex items-center gap-1" onClick={() => handleCopy(prompt.content)} title={t('common.copy')}>
                       <Copy className="h-3.5 w-3.5" />
                       {layoutMode === 'full' && (
-                        <span>复制</span>
+                        <span>{t('common.copy')}</span>
                       )}
                     </Button>
-                    <Button variant="outline" size="sm" className="h-8 px-2 text-xs flex items-center gap-1" onClick={() => handleEdit(prompt)} title="编辑">
+                    <Button variant="outline" size="sm" className="h-8 px-2 text-xs flex items-center gap-1" onClick={() => handleEdit(prompt)} title={t('common.edit')}>
                       <Pencil className="h-3.5 w-3.5" />
                       {layoutMode === 'full' && (
-                        <span>编辑</span>
+                        <span>{t('common.edit')}</span>
                       )}
                     </Button>
-                    <Button variant="outline" size="sm" className="h-8 px-2 text-xs text-muted-foreground/70 hover:text-destructive hover:bg-destructive/10 flex items-center gap-1" onClick={() => handleDelete(prompt.id)} title="删除">
+                    <Button variant="outline" size="sm" className="h-8 px-2 text-xs text-muted-foreground/70 hover:text-destructive hover:bg-destructive/10 flex items-center gap-1" onClick={() => handleDelete(prompt.id)} title={t('common.delete')}>
                       <Trash2 className="h-3.5 w-3.5" />
                       {layoutMode === 'full' && (
-                        <span>删除</span>
+                        <span>{t('common.delete')}</span>
                       )}
                     </Button>
                   </>
@@ -685,7 +686,7 @@ export default function ContentManager() {
       </div>
       {filteredPrompts.length === 0 && (
         <div className="text-center py-20 text-muted-foreground">
-          没有找到匹配的提示词
+          {t('content.noPromptsFound')}
         </div>
       )}
 
@@ -707,8 +708,8 @@ export default function ContentManager() {
       <DeleteConfirmDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
-        title="删除提示词"
-        description="确定要删除这个提示词吗？此操作无法撤销。"
+        title={t('content.deleteTitle')}
+        description={t('content.deleteConfirm')}
         onConfirm={confirmDelete}
       />
     </div>

@@ -36,8 +36,10 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { useI18n } from '@/components/i18n-provider'
 
 export default function TagManager() {
+  const { t } = useI18n()
   const [searchQuery, setSearchQuery] = useState('')
   const [sortOption, setSortOption] = useState<'name' | 'promptCount' | 'createTime' | 'lastModified'>('createTime')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -116,7 +118,7 @@ export default function TagManager() {
 
   const handleTogglePinned = async (tag: Tag) => {
     await db.tags.update(tag.id, { isPinned: !tag.isPinned })
-    toast.success(tag.isPinned ? '已取消置顶' : '已置顶')
+    toast.success(tag.isPinned ? t('common.unpin') : t('common.pin'))
   }
 
   const handleToggleEnabled = async (tag: Tag) => {
@@ -171,7 +173,9 @@ export default function TagManager() {
       }
     })
 
-    toast.success(newEnabled ? '已启用，并尝试启用关联提示词' : '已停用，并停用关联提示词')
+    const action = newEnabled ? t('common.enable') : t('common.disable')
+    const effect = newEnabled ? t('common.enable') : t('common.disable')
+    toast.success(t('tag.toggleSuccess').replace('$1', action).replace('$2', effect))
   }
 
   // Bulk Actions
@@ -207,7 +211,7 @@ export default function TagManager() {
         }
       }
     })
-    toast.success('一键启用完成')
+    toast.success(t('tag.bulkEnableSuccess'))
   }
 
   const handleBulkDisable = async () => {
@@ -228,7 +232,7 @@ export default function TagManager() {
         }
       }
     })
-    toast.success('一键停用完成')
+    toast.success(t('tag.bulkDisableSuccess'))
   }
 
   const handleSave = async (tagData: Tag) => {
@@ -262,19 +266,19 @@ export default function TagManager() {
           // No name change
           await db.tags.put(tagToSave)
         }
-        toast.success('标签更新成功')
+        toast.success(t('tag.updateSuccess'))
       } else {
         await db.tags.add(tagToSave)
-        toast.success('标签创建成功')
+        toast.success(t('tag.createSuccess'))
       }
       setIsDialogOpen(false)
       setEditingTag(null)
     } catch (error: any) {
       if (error.name === 'ConstraintError') {
-        toast.error('标签名称已存在，请使用其他名称。')
+        toast.error(t('tag.nameExists'))
       } else {
         console.error('Failed to save tag:', error)
-        toast.error('保存失败，请重试。')
+        toast.error(t('common.error'))
       }
     }
   }
@@ -292,7 +296,7 @@ export default function TagManager() {
       await db.transaction('rw', db.prompts, db.tags, async () => {
         if (deleteOption === 'move') {
           // Move to "Default" tag
-          const defaultTagName = '默认'
+          const defaultTagName = t('tag.defaultTag')
 
           // Ensure "Default" tag exists
           const existingDefault = await db.tags.where('name').equals(defaultTagName).first()
@@ -329,12 +333,12 @@ export default function TagManager() {
         await db.tags.delete(tagToDelete.id)
       })
 
-      toast.success('标签删除成功')
+      toast.success(t('tag.deleteSuccess'))
       setDeleteDialogOpen(false)
       setTagToDelete(null)
     } catch (error) {
       console.error('Failed to delete tag:', error)
-      toast.error('删除标签失败')
+      toast.error(t('common.error'))
     }
   }
 
@@ -343,20 +347,20 @@ export default function TagManager() {
       {/* Header */}
       <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
-          <h1 className="text-2xl font-bold">标签管理</h1>
+          <h1 className="text-2xl font-bold">{t('tag.title')}</h1>
           <div className="flex flex-wrap gap-2 text-sm">
-            <Button variant="outline" size="sm" className="h-6 text-xs" onClick={handleBulkEnable}>一键启用</Button>
-            <Button variant="outline" size="sm" className="h-6 text-xs" onClick={handleBulkDisable}>一键停用</Button>
+            <Button variant="outline" size="sm" className="h-6 text-xs" onClick={handleBulkEnable}>{t('common.bulkEnable')}</Button>
+            <Button variant="outline" size="sm" className="h-6 text-xs" onClick={handleBulkDisable}>{t('common.bulkDisable')}</Button>
             <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-200">
-              总计 {tags.length} 个标签
+              {t('tag.totalCount').replace('$1', tags.length.toString())}
             </Badge>
             <Badge variant="outline" className="bg-[#AFC2DB]/20 text-[#6B85A8] border-[#AFC2DB]/40">
-              启用 {tagsWithStats.filter(t => t.enabled).length} 个
+              {t('tag.enabledCount').replace('$1', tagsWithStats.filter(t => t.enabled).length.toString())}
             </Badge>
           </div>
         </div>
         <p className="text-muted-foreground text-sm">
-          管理您的提示词标签。修改标签名称会自动更新所有关联的提示词。
+          {t('tag.subtitle')}
         </p>
       </div>
 
@@ -366,7 +370,7 @@ export default function TagManager() {
           <div className="relative min-w-[160px] sm:w-[200px] lg:w-[240px]">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="搜索标签..."
+              placeholder={t('tag.searchPlaceholder')}
               className="pl-8 h-9"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -379,22 +383,22 @@ export default function TagManager() {
               <Button variant="outline" size="sm" className="h-9 w-9 xl:w-[90px] p-0 xl:px-3 justify-center xl:justify-between shrink-0">
                 <span className="flex items-center justify-center">
                   <ArrowUpDown className="h-4 w-4 opacity-50" />
-                  <span className="hidden xl:inline ml-1.5">排序</span>
+                  <span className="hidden xl:inline ml-1.5">{t('common.sort')}</span>
                 </span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => setSortOption('name')}>
-                名称 {sortOption === 'name' && '✓'}
+                {t('common.name')} {sortOption === 'name' && '✓'}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setSortOption('promptCount')}>
-                提示词数量 {sortOption === 'promptCount' && '✓'}
+                {t('common.promptCount')} {sortOption === 'promptCount' && '✓'}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setSortOption('createTime')}>
-                创建时间 {sortOption === 'createTime' && '✓'}
+                {t('common.createTime')} {sortOption === 'createTime' && '✓'}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setSortOption('lastModified')}>
-                最近修改 {sortOption === 'lastModified' && '✓'}
+                {t('common.lastModified')} {sortOption === 'lastModified' && '✓'}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -411,26 +415,26 @@ export default function TagManager() {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="h-9 w-9 xl:w-auto p-0 xl:px-3 shrink-0">
                 <Download className="h-4 w-4 xl:mr-1.5" />
-                <span className="hidden xl:inline text-xs">导入</span>
+                <span className="hidden xl:inline text-xs">{t('common.import')}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
-                本地导入
+                {t('common.localImport')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setImportUrlDialogOpen(true)}>
-                URL 导入
+                {t('common.urlImport')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
           <Button variant="outline" size="sm" className="h-9 w-9 xl:w-auto p-0 xl:px-3 shrink-0" onClick={() => exportToJson(tags, 'tags')}>
             <Upload className="h-4 w-4 xl:mr-1.5" />
-            <span className="hidden xl:inline text-xs">导出</span>
+            <span className="hidden xl:inline text-xs">{t('common.export')}</span>
           </Button>
           <Button size="sm" onClick={handleAdd} className="h-9 w-9 xl:w-auto p-0 xl:px-3 shrink-0">
             <Plus className="h-4 w-4 xl:mr-1.5" />
-            <span className="hidden xl:inline text-xs">新建</span>
+            <span className="hidden xl:inline text-xs">{t('common.new')}</span>
           </Button>
         </div>
       </div>
@@ -446,7 +450,7 @@ export default function TagManager() {
                   <CardTitle className="text-base font-bold">{tag.name}</CardTitle>
                   {tag.isDefault && (
                     <Badge variant="secondary" className="text-[10px] h-5 px-1.5 bg-secondary text-secondary-foreground border-border">
-                      默认
+                      {t('common.default')}
                     </Badge>
                   )}
                 </div>
@@ -456,7 +460,7 @@ export default function TagManager() {
                   className={cn("h-6 w-6 -mt-1 -mr-1", tag.isPinned ? "text-primary" : "text-muted-foreground transition-opacity", tag.isDefault && "opacity-50 cursor-not-allowed hover:bg-transparent hover:text-primary")}
                   onClick={() => !tag.isDefault && handleTogglePinned(tag)}
                   disabled={tag.isDefault}
-                  title={tag.isDefault ? "默认标签始终置顶" : (tag.isPinned ? "取消置顶" : "置顶")}
+                  title={tag.isDefault ? t('tag.defaultTag') : (tag.isPinned ? t('common.unpin') : t('common.pin'))}
                 >
                   {tag.isPinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
                 </Button>
@@ -465,7 +469,7 @@ export default function TagManager() {
             <CardContent className="pb-2">
               <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                 <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground bg-secondary/50 px-2.5 py-1.5 rounded-md">
-                  <span>{tag.promptCount} 个提示词</span>
+                  <span>{tag.promptCount} {t('common.promptCount')}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   {tag.isDefault ? (
@@ -488,11 +492,11 @@ export default function TagManager() {
               <div className='flex flex-col gap-1 text-xs text-muted-foreground'>
                 <div className='flex items-center gap-1.5'>
                   <Calendar className="h-3" />
-                  <span>创建: {tag.createTime}</span>
+                  <span>{t('common.createTime')}: {tag.createTime}</span>
                 </div>
                 <div className='flex items-center gap-1.5'>
                   <Clock className="h-3" />
-                  <span>修改: {tag.lastModified}</span>
+                  <span>{t('common.lastModified')}: {tag.lastModified}</span>
                 </div>
               </div>
             </CardContent>
@@ -504,7 +508,7 @@ export default function TagManager() {
                 onClick={() => !tag.isDefault && handleEdit(tag)}
                 disabled={tag.isDefault}
               >
-                <Pencil className="w-3.5 h-3.5 mr-1" /> 编辑
+                <Pencil className="w-3.5 h-3.5 mr-1" /> {t('common.edit')}
               </Button>
               {!tag.isDefault && (
                 <Button
@@ -513,7 +517,7 @@ export default function TagManager() {
                   className="h-7 px-2 text-muted-foreground/70 hover:text-destructive hover:bg-destructive/10"
                   onClick={() => initiateDelete(tag)}
                 >
-                  <Trash2 className="w-3.5 h-3.5 mr-1" /> 删除
+                  <Trash2 className="w-3.5 h-3.5 mr-1" /> {t('common.delete')}
                 </Button>
               )}
             </CardFooter>
@@ -538,23 +542,23 @@ export default function TagManager() {
       <DeleteConfirmDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
-        title={`删除标签: ${tagToDelete?.name}`}
-        description={`您正在删除一个标签，该标签被 ${tagsWithStats.find(t => t.id === tagToDelete?.id)?.promptCount || 0} 个提示词使用。`}
+        title={t('tag.deleteDialog.title').replace('$1', tagToDelete?.name || '')}
+        description={t('tag.deleteDialog.description').replace('$1', (tagsWithStats.find(t => t.id === tagToDelete?.id)?.promptCount || 0).toString())}
         onConfirm={confirmDelete}
       >
         <RadioGroup value={deleteOption} onValueChange={(v) => setDeleteOption(v as 'move' | 'delete')}>
           <div className="flex items-center space-x-2 mb-4">
             <RadioGroupItem value="move" id="move" />
             <Label htmlFor="move" className="cursor-pointer">
-              <span className="font-bold block">替换为"默认"标签 (推荐)</span>
-              <span className="text-xs text-muted-foreground">将关联提示词中的该标签替换为"默认"，保留提示词。</span>
+              <span className="font-bold block">{t('tag.deleteDialog.moveOption')}</span>
+              <span className="text-xs text-muted-foreground">{t('tag.deleteDialog.moveDesc')}</span>
             </Label>
           </div>
           <div className="flex items-center space-x-2">
             <RadioGroupItem value="delete" id="delete" />
             <Label htmlFor="delete" className="cursor-pointer">
-              <span className="font-bold block text-destructive">删除关联提示词</span>
-              <span className="text-xs text-muted-foreground">删除所有包含此标签的提示词（慎选）。</span>
+              <span className="font-bold block text-destructive">{t('tag.deleteDialog.deleteOption')}</span>
+              <span className="text-xs text-muted-foreground">{t('tag.deleteDialog.deleteDesc')}</span>
             </Label>
           </div>
         </RadioGroup>
