@@ -35,7 +35,7 @@ export default function Settings() {
                 选择您喜欢的界面主题。
               </p>
             </div>
-            <Select value={appearance.theme} onValueChange={(val: any) => setTheme(val)}>
+            <Select value={appearance.theme || 'system'} onValueChange={(val: any) => setTheme(val)}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="选择主题" />
               </SelectTrigger>

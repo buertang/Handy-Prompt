@@ -90,9 +90,16 @@ export function ContentSaveDialog({ open, onOpenChange, initialContent }: Conten
       const tags = selectedTags.map(t => t.value);
       const now = new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-');
 
+      const author = formData.author.trim();
+      const source = formData.source.trim();
+      const finalAuthor = !author && !source ? 'system' : formData.author;
+      const finalSource = !author && !source ? 'system' : formData.source;
+
       const newPrompt = {
         ...formData,
         tags,
+        author: finalAuthor,
+        source: finalSource,
         lastModified: now
       };
 

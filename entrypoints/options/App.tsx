@@ -80,20 +80,20 @@ const menuItems: MenuItem[] = [
     icon: ClipboardListIcon,
     label: '提示词管理',
     items: [
-      { label: '内容管理', href: '#' },
-      { label: '分类管理', href: '#' },
-      { label: '标签管理', href: '#' }
+      { label: '内容管理', href: '#content' },
+      { label: '分类管理', href: '#category' },
+      { label: '标签管理', href: '#tag' }
     ]
   },
   {
     icon: ArrowRightLeftIcon,
     label: '同步管理',
-    href: '#'
+    href: '#sync'
   },
   {
     icon: SettingsIcon,
     label: '设置',
-    href: '#'
+    href: '#settings'
   }
 ]
 
@@ -131,6 +131,7 @@ const SidebarGroupedMenuItems = ({
                               href={subItem.href}
                               onClick={e => {
                                 e.preventDefault()
+                                window.location.hash = subItem.href
                                 onItemClick(item.label, subItem.label)
                               }}
                             >
@@ -155,6 +156,9 @@ const SidebarGroupedMenuItems = ({
                     href={item.href}
                     onClick={e => {
                       e.preventDefault()
+                      if (item.href) {
+                        window.location.hash = item.href
+                      }
                       onItemClick(item.label)
                     }}
                   >

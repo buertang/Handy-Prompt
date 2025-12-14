@@ -43,11 +43,68 @@ const db = new Dexie('HandyPromptDB') as Dexie & {
   tags: EntityTable<Tag, 'id'>;
 };
 
+const getNowString = () => {
+  const date = new Date();
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  const y = date.getFullYear();
+  const m = pad(date.getMonth() + 1);
+  const d = pad(date.getDate());
+  const hh = pad(date.getHours());
+  const mm = pad(date.getMinutes());
+  const ss = pad(date.getSeconds());
+  return `${y}-${m}-${d} ${hh}:${mm}:${ss}`;
+};
+
 // Schema definition
 db.version(1).stores({
-  prompts: 'id, &title, categoryId, *tags, createTime, lastModified, author, source, enabled, isPinned', // *tags for multi-valued index
-  categories: 'id, &name, createTime, lastModified, isPinned, enabled',
-  tags: 'id, &name, createTime, lastModified, isPinned, enabled'
+  prompts: '&id, &title, categoryId, *tags, createTime, lastModified, author, source, enabled, isPinned', // *tags for multi-valued index
+  categories: '&id, &name, createTime, lastModified, isPinned, enabled',
+  tags: '&id, &name, createTime, lastModified, isPinned, enabled'
+});
+
+db.prompts.hook('creating', (_primaryKey, obj) => {
+  const now = getNowString();
+  const author = (obj.author || '').trim();
+  const source = (obj.source || '').trim();
+
+  if (!author && !source) {
+    obj.author = 'system';
+    obj.source = 'system';
+  }
+
+  if (!obj.createTime || !obj.createTime.trim()) {
+    obj.createTime = now;
+  }
+
+  if (!obj.lastModified || !obj.lastModified.trim()) {
+    obj.lastModified = now;
+  }
+});
+
+db.prompts.hook('updating', (mods: any, _primaryKey, obj) => {
+  const now = getNowString();
+
+  const nextAuthor = (mods.author ?? obj.author) as string | undefined;
+  const nextSource = (mods.source ?? obj.source) as string | undefined;
+  const author = (nextAuthor || '').trim();
+  const source = (nextSource || '').trim();
+
+  if (!author && !source) {
+    mods.author = 'system';
+    mods.source = 'system';
+  }
+
+  const nextCreateTime = (mods.createTime ?? obj.createTime) as string | undefined;
+  if (!nextCreateTime || !nextCreateTime.trim()) {
+    mods.createTime = obj.createTime || now;
+  }
+
+  const nextLastModified = (mods.lastModified ?? obj.lastModified) as string | undefined;
+  if (!nextLastModified || !nextLastModified.trim()) {
+    mods.lastModified = now;
+  }
+
+  return mods;
 });
 
 // Seed data
@@ -127,7 +184,7 @@ db.on('populate', async () => {
       content: '请将以下内容翻译成英文，并进行润色，使其更加专业、地道，符合母语人士的表达习惯：\n\n[在此输入中文内容]',
       description: '将中文翻译并润色为地道的英文',
       createTime: '2024-03-01 10:00:00',
-      lastModified: '无修改时间',
+      lastModified: '2024-03-01 10:00:00',
       enabled: true,
       categoryId: officeCategory.id,
       author: 'System',
@@ -141,7 +198,7 @@ db.on('populate', async () => {
       content: '请帮我Review这段代码，解释其功能，并给出优化建议（包括性能、可读性、安全性等方面）：\n\n```\n[在此粘贴代码]\n```',
       description: '代码审查与优化建议',
       createTime: '2024-03-05 14:30:00',
-      lastModified: '无修改时间',
+      lastModified: '2024-03-05 14:30:00',
       enabled: true,
       categoryId: codeCategory.id,
       author: 'System',
@@ -155,7 +212,7 @@ db.on('populate', async () => {
       content: '请根据以下会议记录，整理出一份结构清晰的会议纪要。包含：会议主题、参会人员、主要议题、讨论重点、决议事项和后续行动计划（Action Items）。\n\n[在此粘贴会议记录]',
       description: '快速生成结构化会议纪要',
       createTime: '2024-03-10 09:15:00',
-      lastModified: '无修改时间',
+      lastModified: '2024-03-10 09:15:00',
       enabled: true,
       categoryId: officeCategory.id,
       author: 'System',

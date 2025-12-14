@@ -64,6 +64,8 @@ export function PromptDialog({
   const [formData, setFormData] = useState<Prompt>(defaultPrompt)
   const [selectedTags, setSelectedTags] = useState<Option[]>([])
 
+  const isEditMode = !!prompt && prompt.id !== ''
+
   // Sort categories by isPinned descending, then createTime descending (newest first)
   const sortedCategories = [...categories].sort((a, b) => {
     if (a.isPinned !== b.isPinned) return (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0);
@@ -108,15 +110,21 @@ export function PromptDialog({
     // Update modify time
     const now = new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-')
 
+    const author = (formData.author || '').trim()
+    const source = (formData.source || '').trim()
+    const finalAuthor = !isEditMode && !author && !source ? 'system' : formData.author
+    const finalSource = !isEditMode && !author && !source ? 'system' : formData.source
+
     onSave({
       ...formData,
       tags,
+      author: finalAuthor,
+      source: finalSource,
       lastModified: now
     })
     onOpenChange(false)
   }
 
-  const isEditMode = !!prompt && prompt.id !== ''
   const isValid = formData.title.trim().length > 0 && formData.content.trim().length > 0 && formData.categoryId !== ''
 
   return (
