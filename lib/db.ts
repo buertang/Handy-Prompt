@@ -122,17 +122,6 @@ db.on('populate', async () => {
     lastModified: now,
     isPinned: true
   };
-  const styleCategory = {
-    id: crypto.randomUUID(),
-    name: '风格化',
-    isDefault: false,
-    description: '绘画相关的提示词，包含Midjourney、Stable Diffusion等',
-    enabled: true,
-    color: 'bg-orange-400', // Orange (Style)
-    createTime: now,
-    lastModified: now,
-    isPinned: false
-  };
   const codeCategory = {
     id: crypto.randomUUID(),
     name: '编程',
@@ -155,24 +144,11 @@ db.on('populate', async () => {
     lastModified: now,
     isPinned: false
   };
-  const eduCategory = {
-    id: crypto.randomUUID(),
-    name: '教育',
-    isDefault: false,
-    description: '教育与学习助手',
-    enabled: true,
-    color: 'bg-violet-400', // Violet (Edu)
-    createTime: now,
-    lastModified: now,
-    isPinned: false
-  };
 
   await db.categories.bulkAdd([
     defaultCategory,
-    styleCategory,
     codeCategory,
-    officeCategory,
-    eduCategory
+    officeCategory
   ]);
 
   // Initial Prompts
@@ -180,7 +156,7 @@ db.on('populate', async () => {
     {
       id: crypto.randomUUID(),
       title: '英文润色',
-      tags: ['写作', '翻译', '英语'],
+      tags: ['写作', '翻译'],
       content: '请将以下内容翻译成英文，并进行润色，使其更加专业、地道，符合母语人士的表达习惯：\n\n[在此输入中文内容]',
       description: '将中文翻译并润色为地道的英文',
       createTime: '2024-03-01 10:00:00',
@@ -218,34 +194,6 @@ db.on('populate', async () => {
       author: 'System',
       source: 'Built-in',
       isPinned: false
-    },
-    {
-      id: crypto.randomUUID(),
-      title: '创意头脑风暴',
-      tags: ['创意', '灵感'],
-      content: '请针对以下主题，提供10个具有创意且可行的点子/方案，并简要说明每个点子的核心价值：\n\n主题：[在此输入主题]',
-      description: '针对特定主题生成创意方案',
-      createTime: '2024-03-15 16:45:00',
-      lastModified: '2024-03-20 11:20:00',
-      enabled: true,
-      categoryId: officeCategory.id,
-      author: 'System',
-      source: 'Built-in',
-      isPinned: false
-    },
-    {
-      id: crypto.randomUUID(),
-      title: '复杂概念解释',
-      tags: ['学习', '解释'],
-      content: '请用通俗易懂的语言解释以下概念，最好能使用生活中的类比，让没有背景知识的初学者也能听懂：\n\n概念：[在此输入概念]',
-      description: '通俗易懂地解释复杂概念',
-      createTime: '2024-03-18 20:00:00',
-      lastModified: '2024-03-21 08:30:00',
-      enabled: true,
-      categoryId: eduCategory.id,
-      author: 'System',
-      source: 'Built-in',
-      isPinned: false
     }
   ]);
 
@@ -260,7 +208,7 @@ db.on('populate', async () => {
     isDefault: true
   };
 
-  const uniqueTags = new Set(['写作', '翻译', '英语', '编程', '优化', '办公', '总结', '创意', '灵感', '学习', '解释']);
+  const uniqueTags = new Set(['写作', '翻译', '编程', '优化', '办公', '总结']);
   const tagsToAdd = Array.from(uniqueTags).map(name => ({
     id: crypto.randomUUID(),
     name,
