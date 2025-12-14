@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import ClearableInput from '@/components/shadcn-studio/input-clear'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
@@ -94,22 +95,22 @@ export function CategoryDialog({
         <div className="grid gap-6 py-4">
           <div className="grid gap-2">
             <Label htmlFor="name">分类名称</Label>
-            <Input
+            <ClearableInput
               id="name"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onClear={() => setFormData({ ...formData, name: '' })}
               placeholder="请输入分类名称"
             />
           </div>
 
           <div className="grid gap-2">
             <Label htmlFor="description">描述 (可选)</Label>
-            <Textarea
+            <ClearableInput
               id="description"
-              value={formData.description}
+              value={formData.description ?? ''}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="resize-none"
-              rows={3}
+              onClear={() => setFormData({ ...formData, description: '' })}
               placeholder="请输入分类描述"
             />
           </div>

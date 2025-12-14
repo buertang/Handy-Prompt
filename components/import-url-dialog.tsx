@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import ClearableInput from '@/components/shadcn-studio/input-clear'
 import { Label } from '@/components/ui/label'
 import { Link, Info, Download } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -67,11 +68,12 @@ export function ImportUrlDialog({
           <div className="grid gap-2">
             <Label htmlFor="url">远程 URL</Label>
             <div className="relative">
-              <Link className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
+              <Link className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground z-10" />
+              <ClearableInput
                 id="url"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
+                onClear={() => setUrl('')}
                 placeholder="https://example.com/prompts.json"
                 className="pl-9"
               />

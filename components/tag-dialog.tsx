@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import ClearableInput from '@/components/shadcn-studio/input-clear'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import {
@@ -74,10 +75,11 @@ export function TagDialog({
         <div className="grid gap-6 py-4">
           <div className="grid gap-2">
             <Label htmlFor="name">标签名称</Label>
-            <Input
+            <ClearableInput
               id="name"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onClear={() => setFormData({ ...formData, name: '' })}
               placeholder="请输入标签名称"
             />
           </div>

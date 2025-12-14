@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import ClearableInput from '@/components/shadcn-studio/input-clear'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
@@ -135,10 +136,11 @@ export function PromptDialog({
           <div className="grid grid-cols-3 gap-4">
             <div className="grid gap-2 col-span-2">
               <Label htmlFor="title">标题</Label>
-              <Input
+              <ClearableInput
                 id="title"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                onClear={() => setFormData({ ...formData, title: '' })}
                 placeholder="输入提示词标题"
               />
             </div>
@@ -165,10 +167,11 @@ export function PromptDialog({
 
           <div className="grid gap-2">
             <Label htmlFor="description">描述</Label>
-            <Input
+            <ClearableInput
               id="description"
-              value={formData.description}
+              value={formData.description || ''}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onClear={() => setFormData({ ...formData, description: '' })}
               placeholder="简短描述提示词的作用"
             />
           </div>
@@ -176,19 +179,21 @@ export function PromptDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="author">作者</Label>
-              <Input
+              <ClearableInput
                 id="author"
                 value={formData.author || ''}
                 onChange={(e) => setFormData({ ...formData, author: e.target.value })}
+                onClear={() => setFormData({ ...formData, author: '' })}
                 placeholder="(可选)"
               />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="source">来源</Label>
-              <Input
+              <ClearableInput
                 id="source"
                 value={formData.source || ''}
                 onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+                onClear={() => setFormData({ ...formData, source: '' })}
                 placeholder="(可选)"
               />
             </div>
@@ -242,7 +247,7 @@ export function PromptDialog({
               <div className="space-y-0.5">
                 <Label htmlFor="enabled">启用状态</Label>
                 <div className="text-xs text-muted-foreground">
-                  是否在 popup 显示
+                  是否启用该提示词
                 </div>
               </div>
               <Switch
