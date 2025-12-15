@@ -15,6 +15,45 @@ export interface ExportData<T> {
 }
 
 /**
+ * 字段映射配置
+ * key: 数据类型 (library, categories, tags)
+ * value: 字段名映射 (英文 -> 中文)
+ */
+export const FIELD_MAPPINGS: Record<string, Record<string, string>> = {
+  library: {
+    id: 'ID',
+    title: '标题',
+    content: '内容',
+    description: '描述',
+    tags: '标签',
+    categoryId: '分类ID',
+    categoryName: '分类名称',
+    createTime: '创建时间',
+    lastModified: '修改时间',
+    enabled: '启用',
+  },
+  categories: {
+    id: 'ID',
+    name: '名称',
+    color: '颜色',
+    createTime: '创建时间',
+    lastModified: '修改时间',
+    enabled: '启用',
+    isDefault: '默认',
+  },
+  tags: {
+    id: 'ID',
+    name: '名称',
+    isPinned: '置顶',
+    createTime: '创建时间',
+    lastModified: '修改时间',
+    enabled: '启用',
+    isDefault: '默认',
+    promptCount: '提示词数量'
+  }
+};
+
+/**
  * 格式化当前日期为 YYYYMMDD_HHMMSS 格式
  */
 const formatDateTime = (date: Date): string => {
@@ -77,9 +116,31 @@ export function exportData<T>(
       });
     } else {
       // Excel / CSV Export
-      // 对于 Excel/CSV，我们只导出 data 数组，不包含 meta 信息（或者放在另一个 sheet，但通常不需要）
-      // 确保 data 是扁平的对象数组
-      const worksheet = XLSX.utils.json_to_sheet(data);
+      // 1. 转换数据为中文表头
+      const mapping = FIELD_MAPPINGS[type];
+      const exportData = data.map((item: any) => {
+        const newItem: Record<string, any> = {};
+
+        // 遍历数据的每个字段
+        Object.keys(item).forEach(key => {
+          // 如果有对应的中文映射，使用中文 key，否则使用原 key
+          const newKey = mapping && mapping[key] ? mapping[key] : key;
+
+          let value = item[key];
+
+          // 特殊处理数组 (如 tags)，转换为逗号分隔字符串
+          if (Array.isArray(value)) {
+            value = value.join(',');
+          }
+
+          newItem[newKey] = value;
+        });
+
+        return newItem;
+      });
+
+      // 2. 生成 Sheet
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
 
@@ -99,5 +160,3 @@ export function exportData<T>(
     });
   }
 }
-
-

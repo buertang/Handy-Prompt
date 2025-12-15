@@ -72,6 +72,16 @@ export const incrementUsage = async (id: string) => {
   });
 };
 
+const isChinese = () => {
+  try {
+    return navigator.language.toLowerCase().startsWith('zh');
+  } catch {
+    return true; // Default to Chinese if navigator is not available (fallback)
+  }
+};
+
+const getDefaultName = () => isChinese() ? '默认' : 'Default';
+
 db.prompts.hook('creating', (_primaryKey, obj) => {
   const now = getNowString();
   const author = (obj.author || '').trim();
@@ -88,6 +98,11 @@ db.prompts.hook('creating', (_primaryKey, obj) => {
 
   if (!obj.lastModified || !obj.lastModified.trim()) {
     obj.lastModified = now;
+  }
+
+  // 默认标签处理：如果没有标签，添加"默认"
+  if (!obj.tags || obj.tags.length === 0) {
+    obj.tags = [getDefaultName()];
   }
 });
 
@@ -117,13 +132,48 @@ db.prompts.hook('updating', (mods: any, _primaryKey, obj) => {
   return mods;
 });
 
+db.categories.hook('deleting', (primKey, obj) => {
+  if (obj.isDefault) {
+    throw new Error('无法删除默认分类');
+  }
+});
+
+db.categories.hook('updating', (mods: Partial<Category>, primKey, obj) => {
+  if (obj.isDefault) {
+    if (mods.hasOwnProperty('isDefault') && !mods.isDefault) {
+      throw new Error('无法取消默认分类状态');
+    }
+    if (mods.hasOwnProperty('name') && mods.name !== obj.name) {
+      throw new Error('无法修改默认分类名称');
+    }
+  }
+});
+
+db.tags.hook('deleting', (primKey, obj) => {
+  if (obj.isDefault) {
+    throw new Error('无法删除默认标签');
+  }
+});
+
+db.tags.hook('updating', (mods: Partial<Tag>, primKey, obj) => {
+  if (obj.isDefault) {
+    if (mods.hasOwnProperty('isDefault') && !mods.isDefault) {
+      throw new Error('无法取消默认标签状态');
+    }
+    if (mods.hasOwnProperty('name') && mods.name !== obj.name) {
+      throw new Error('无法修改默认标签名称');
+    }
+  }
+});
+
 // Seed data
 db.on('populate', async () => {
   const now = new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-');
+  const defaultName = getDefaultName();
 
   const defaultCategory = {
     id: crypto.randomUUID(),
-    name: '默认',
+    name: defaultName,
     isDefault: true,
     description: '系统默认分类，用于存放未分类的提示词',
     enabled: true,
@@ -210,7 +260,7 @@ db.on('populate', async () => {
   // Initial Tags (optional, can be inferred, but good to have a list)
   const defaultTag = {
     id: crypto.randomUUID(),
-    name: '默认',
+    name: defaultName,
     createTime: now,
     lastModified: now,
     isPinned: true,

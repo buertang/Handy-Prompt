@@ -649,10 +649,16 @@ export default function ContentManager() {
                   <DropdownMenuItem onClick={() => exportData(prompts, 'library', 'json')}>
                     JSON
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => exportData(prompts, 'library', 'xlsx')}>
+                  <DropdownMenuItem onClick={() => exportData(prompts.map(p => ({
+                    ...p,
+                    categoryName: categoryMap[p.categoryId]?.name || ''
+                  })), 'library', 'xlsx')}>
                     Excel (.xlsx)
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => exportData(prompts, 'library', 'csv')}>
+                  <DropdownMenuItem onClick={() => exportData(prompts.map(p => ({
+                    ...p,
+                    categoryName: categoryMap[p.categoryId]?.name || ''
+                  })), 'library', 'csv')}>
                     CSV
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -696,7 +702,10 @@ export default function ContentManager() {
                     </DropdownMenuSubContent>
                   </DropdownMenuSub>
 
-                  <DropdownMenuItem onClick={() => exportData(prompts, 'library')}>
+                  <DropdownMenuItem onClick={() => exportData(prompts.map(p => ({
+                    ...p,
+                    categoryName: categoryMap[p.categoryId]?.name || ''
+                  })), 'library')}>
                     <Upload className="mr-2 h-4 w-4" />
                     {t('common.export')}
                   </DropdownMenuItem>
@@ -712,7 +721,7 @@ export default function ContentManager() {
         <div className="rounded-md border bg-card">
           {/* List Header */}
           <div className="flex items-center px-4 py-3 border-b bg-muted/50 text-xs font-medium text-muted-foreground">
-            <div className="flex-1 min-w-0 px-2">
+            <div className="flex-1 min-w-[160px] max-w-[500px] px-2">
               {t('common.name')}
               <span className="hidden sm:inline"> / {t('common.description')}</span>
             </div>
@@ -729,19 +738,52 @@ export default function ContentManager() {
             {paginatedPrompts.map(prompt => (
               <div key={prompt.id} className="flex items-center px-4 py-3 hover:bg-muted/50 transition-colors group">
                 {/* Title & Description */}
-                <div className="flex-1 min-w-0 px-2 flex flex-col gap-2 pr-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-base font-semibold truncate text-foreground">{prompt.title}</span>
-                    {prompt.isPinned && <Pin className="h-3.5 w-3.5 text-primary rotate-45 shrink-0" />}
-                  </div>
+                <div className="flex-1 min-w-[160px] max-w-[500px] px-2 flex flex-col gap-2 pr-4">
+                  <HoverCard>
+                    <HoverCardTrigger asChild>
+                      <div className="cursor-help group/item">
+                        <div className="flex items-center gap-2">
+                          <span className="text-base font-semibold truncate text-foreground group-hover/item:text-primary transition-colors">{prompt.title}</span>
+                          {prompt.isPinned && <Pin className="h-3.5 w-3.5 text-primary rotate-45 shrink-0" />}
+                        </div>
 
-                  {prompt.description && (
-                    <p className="text-sm text-muted-foreground truncate leading-none">{prompt.description}</p>
-                  )}
+                        {prompt.description && (
+                          <p className="text-sm text-muted-foreground truncate leading-none mt-1">{prompt.description}</p>
+                        )}
 
-                  <div className="hidden sm:block text-xs text-muted-foreground/80 font-mono bg-muted/30 px-2 py-1.5 rounded border w-full truncate">
-                    {prompt.content}
-                  </div>
+                        <div className="hidden sm:block text-xs text-muted-foreground/80 font-mono bg-muted/30 px-2 py-1.5 rounded border w-full truncate mt-1">
+                          {prompt.content}
+                        </div>
+                      </div>
+                    </HoverCardTrigger>
+                    <HoverCardContent className="w-80 sm:w-96 p-0 overflow-hidden" align="start">
+                      <ScrollArea className="max-h-[320px] w-full">
+                        <div className="p-4 space-y-3">
+                          <div>
+                            <h4 className="font-semibold text-sm flex items-center gap-2">
+                              {prompt.title}
+                              {prompt.isPinned && <Pin className="h-3 w-3 text-primary rotate-45" />}
+                            </h4>
+                            {prompt.description && (
+                              <p className="text-xs text-muted-foreground mt-1">{prompt.description}</p>
+                            )}
+                          </div>
+
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{t('common.content' as any)}</span>
+                            <div className="text-xs font-mono bg-muted/50 p-2.5 rounded border break-words break-all whitespace-pre-wrap">
+                              {prompt.content}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between text-[10px] text-muted-foreground border-t pt-2">
+                            <span>{t('common.createdOn').replace('$1', prompt.createTime?.split(' ')[0] || '')}</span>
+                            <span className="font-mono">ID: {prompt.id.slice(0, 8)}</span>
+                          </div>
+                        </div>
+                      </ScrollArea>
+                    </HoverCardContent>
+                  </HoverCard>
                 </div>
 
                 {/* Category */}

@@ -2,7 +2,7 @@
   "name": "handy-prompt",
   "description": "做自己随手可用的prompt工具",
   "private": true,
-  "version": "1.0.2",
+  "version": "1.0.5",
   "type": "module",
   "scripts": {
     "dev": "wxt",

@@ -1,7 +1,30 @@
 import { db, type Prompt, type Category, type Tag } from '@/lib/db'
 import { toast } from 'sonner'
-import type { ExportData } from './export'
+import { type ExportData, FIELD_MAPPINGS } from './export'
 import * as XLSX from 'xlsx'
+
+/**
+ * 将中文表头转换为英文字段名
+ */
+function translateKeys(items: any[], type: string): any[] {
+  const mapping = FIELD_MAPPINGS[type];
+  if (!mapping) return items;
+
+  const reverseMapping: Record<string, string> = {};
+  Object.entries(mapping).forEach(([eng, cn]) => {
+    reverseMapping[cn] = eng;
+  });
+
+  return items.map(item => {
+    const newItem: any = {};
+    Object.keys(item).forEach(key => {
+      // 如果 key 是中文，映射回英文；如果是英文，保留原样
+      const engKey = reverseMapping[key] || key;
+      newItem[engKey] = item[key];
+    });
+    return newItem;
+  });
+}
 
 /**
  * 解析并导入 JSON 数据
@@ -28,6 +51,10 @@ export async function importData(jsonData: any, targetType: 'library' | 'categor
     } else if (Array.isArray(jsonData)) {
       // 2. 如果是纯数组 (Excel/CSV 或 纯 JSON 数组)，尝试通过字段特征检测类型
       items = jsonData
+
+      // 尝试翻译字段名 (处理中文表头)
+      items = translateKeys(items, targetType)
+
       if (items.length > 0) {
         const firstItem = items[0]
         if (targetType === 'library' && (!firstItem.title || !firstItem.content)) {
@@ -51,8 +78,39 @@ export async function importData(jsonData: any, targetType: 'library' | 'categor
       throw new Error('无法识别的数据格式')
     }
 
+    // 再次确保 items 经过翻译 (针对 Case 1，虽然通常不需要，但为了保险)
+    // 注意：Case 2 已经在上面翻译过了，这里会再次翻译吗？translateKeys 是幂等的吗？
+    // translateKeys: reverseMapping[key] || key. 
+    // 如果 key 已经是英文，reverseMapping[key] 是 undefined，返回 key。
+    // 所以是幂等的 (只要中文和英文 key 不冲突)。
+    items = translateKeys(items, targetType)
+
     if (!Array.isArray(items) || items.length === 0) {
       throw new Error('未找到有效的数据项')
+    }
+
+    // 获取默认分类 ID
+    const defaultCategory = await db.categories.filter(c => !!c.isDefault).first()
+    let defaultCategoryId = defaultCategory?.id
+
+    // 如果没有默认分类，查找第一个分类作为默认
+    if (!defaultCategoryId) {
+      const firstCategory = await db.categories.toCollection().first()
+      if (firstCategory) {
+        defaultCategoryId = firstCategory.id
+      } else {
+        // 如果连一个分类都没有，创建一个默认分类
+        defaultCategoryId = crypto.randomUUID()
+        const timeStr = new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-')
+        await db.categories.add({
+          id: defaultCategoryId,
+          name: '默认分类',
+          isDefault: true,
+          createTime: timeStr,
+          lastModified: timeStr,
+          color: 'bg-slate-500'
+        })
+      }
     }
 
     const now = new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-')
@@ -61,7 +119,6 @@ export async function importData(jsonData: any, targetType: 'library' | 'categor
     await db.transaction('rw', db.prompts, db.categories, db.tags, async () => {
       if (targetType === 'library') {
         for (const item of items) {
-          // 确保必要字段存在
           if (!item.title || !item.content) continue
 
           // 1. 检查是否存在同名提示词
@@ -92,6 +149,43 @@ export async function importData(jsonData: any, targetType: 'library' | 'categor
             tags = []
           }
 
+          // 2. 同步导入标签
+          if (tags.length > 0) {
+            for (const tagName of tags) {
+              const existingTag = await db.tags.where('name').equals(tagName).first()
+              if (!existingTag) {
+                await db.tags.add({
+                  id: crypto.randomUUID(),
+                  name: tagName,
+                  createTime: now,
+                  lastModified: now,
+                  isDefault: false
+                })
+              }
+            }
+          }
+
+          // 3. 同步导入分类
+          let categoryId = defaultCategoryId || ''
+
+          if (item.categoryName) {
+            const existingCategory = await db.categories.where('name').equals(item.categoryName).first()
+            if (existingCategory) {
+              categoryId = existingCategory.id
+            } else {
+              const newCategoryId = crypto.randomUUID()
+              await db.categories.add({
+                id: newCategoryId,
+                name: item.categoryName,
+                isDefault: false,
+                createTime: now,
+                lastModified: now,
+                color: 'bg-slate-500' // 默认颜色
+              })
+              categoryId = newCategoryId
+            }
+          }
+
           const promptToSave: Prompt = {
             ...item,
             id: finalId,
@@ -101,7 +195,7 @@ export async function importData(jsonData: any, targetType: 'library' | 'categor
             description: item.description || '',
             createTime: item.createTime || now,
             lastModified: now,
-            categoryId: item.categoryId || '', // Excel 导入可能没有 ID，需要后续处理关联，或者导出时导出 Category Name
+            categoryId: categoryId,
             enabled: item.enabled === undefined ? true : item.enabled === true || item.enabled === 'true',
           }
 
