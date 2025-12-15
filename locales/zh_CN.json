@@ -9,6 +9,7 @@
   "contextSaveSelection": "保存为提示词",
   "popup": {
     "library": "提示词库",
+    "recentUsed": "最近使用",
     "enabledCountSuffix": "个启用",
     "instructions": "使用说明",
     "quickInput": "快捷输入",
@@ -61,7 +62,15 @@
     "unknown": "未知",
     "noData": "暂无数据",
     "createdOn": "创建于: $1",
-    "modifiedOn": "修改于: $1"
+    "modifiedOn": "修改于: $1",
+    "cardView": "卡片视图",
+    "listView": "列表视图",
+    "rowsPerPage": "每页行数",
+    "totalItems": "共 $1 条",
+    "page": "第",
+    "pageOf": "页 / 共",
+    "pageSuffix": "页",
+    "showing": "显示"
   },
   "content": {
     "title": "提示词库",
@@ -91,7 +100,8 @@
     "source": "来源",
     "totalPrompts": "总计 $1 个提示词",
     "enabledCount": "启用 $1 个",
-    "sortByTitle": "标题"
+    "sortByTitle": "标题",
+    "sortByUsage": "使用频率"
   },
   "category": {
     "title": "分类管理",
@@ -206,7 +216,11 @@
       "selectTheme": "选择主题",
       "light": "浅色模式",
       "dark": "深色模式",
-      "system": "跟随系统"
+      "system": "跟随系统",
+      "viewMode": "视图模式",
+      "viewModeDesc": "选择卡片视图或列表视图。",
+      "cardView": "卡片",
+      "listView": "列表"
     },
     "general": {
       "title": "通用",

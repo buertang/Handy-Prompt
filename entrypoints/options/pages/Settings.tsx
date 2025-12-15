@@ -4,10 +4,11 @@ import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { useSettings } from '@/hooks/use-settings'
 import { useTheme } from '@/hooks/use-theme'
-import { Moon, Sun, Monitor, Keyboard, Languages } from 'lucide-react'
+import { Moon, Sun, Monitor, Keyboard, Languages, LayoutGrid, List } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { browser } from 'wxt/browser'
+import { cn } from '@/lib/utils'
 
 export default function Settings() {
   const { t, language, setLanguage } = useI18n()
@@ -32,15 +33,16 @@ export default function Settings() {
           <CardDescription>{t('settingsPage.appearance.description')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>{t('settingsPage.appearance.themeMode')}</Label>
+          {/* Theme Mode */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <Label className="text-base">{t('settingsPage.appearance.themeMode')}</Label>
               <p className="text-sm text-muted-foreground">
                 {t('settingsPage.appearance.themeDesc')}
               </p>
             </div>
             <Select value={appearance.theme || 'system'} onValueChange={(val: any) => setTheme(val)}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full md:w-[200px]">
                 <SelectValue placeholder={t('settingsPage.appearance.selectTheme')} />
               </SelectTrigger>
               <SelectContent>
@@ -61,6 +63,46 @@ export default function Settings() {
                 </SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          {/* View Mode */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <Label className="text-base">{t('settingsPage.appearance.viewMode')}</Label>
+              <p className="text-sm text-muted-foreground">
+                {t('settingsPage.appearance.viewModeDesc')}
+              </p>
+            </div>
+            <div className="flex items-center p-1 bg-muted rounded-lg border shadow-inner">
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "flex-1 md:flex-none h-8 px-4 rounded-md transition-all duration-200",
+                  appearance.viewMode === 'card'
+                    ? "bg-background text-foreground shadow-sm font-medium"
+                    : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
+                )}
+                onClick={() => updateAppearance({ viewMode: 'card' })}
+              >
+                <LayoutGrid className="h-4 w-4 mr-2" />
+                {t('settingsPage.appearance.cardView')}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "flex-1 md:flex-none h-8 px-4 rounded-md transition-all duration-200",
+                  appearance.viewMode === 'list'
+                    ? "bg-background text-foreground shadow-sm font-medium"
+                    : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
+                )}
+                onClick={() => updateAppearance({ viewMode: 'list' })}
+              >
+                <List className="h-4 w-4 mr-2" />
+                {t('settingsPage.appearance.listView')}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -1,6 +1,7 @@
 import { db, type Prompt, type Category, type Tag } from '@/lib/db'
 import { toast } from 'sonner'
 import type { ExportData } from './export'
+import * as XLSX from 'xlsx'
 
 /**
  * 解析并导入 JSON 数据
@@ -11,13 +12,13 @@ export async function importData(jsonData: any, targetType: 'library' | 'categor
   try {
     // 简单的格式校验
     if (!jsonData || typeof jsonData !== 'object') {
-      throw new Error('无效的 JSON 数据')
+      throw new Error('无效的数据格式')
     }
 
     // 兼容 ExportData 结构或直接数组结构
     let items: any[] = []
-    
-    // 如果是 ExportData 结构，进行严格校验
+
+    // 如果是 ExportData 结构 (JSON)，进行严格校验
     if (!Array.isArray(jsonData) && jsonData.meta && jsonData.data) {
       // 1. 检查 meta.type 是否匹配
       if (jsonData.meta.type !== targetType) {
@@ -25,27 +26,29 @@ export async function importData(jsonData: any, targetType: 'library' | 'categor
       }
       items = jsonData.data
     } else if (Array.isArray(jsonData)) {
-      // 2. 如果是纯数组，尝试通过字段特征检测类型
+      // 2. 如果是纯数组 (Excel/CSV 或 纯 JSON 数组)，尝试通过字段特征检测类型
       items = jsonData
       if (items.length > 0) {
         const firstItem = items[0]
         if (targetType === 'library' && (!firstItem.title || !firstItem.content)) {
-           // 可能是分类或标签数据
-           if (firstItem.name && firstItem.color) throw new Error('检测到分类数据，请在分类管理页面导入')
-           if (firstItem.name && !firstItem.color) throw new Error('检测到标签数据，请在标签管理页面导入')
-           throw new Error('无效的提示词数据格式')
+          // 可能是分类或标签数据
+          if (firstItem.name && firstItem.color) throw new Error('检测到分类数据，请在分类管理页面导入')
+          if (firstItem.name && !firstItem.color) throw new Error('检测到标签数据，请在标签管理页面导入')
+          // 宽松一点，如果是 Excel 导入，可能只有 title content，没有 id 等
+          if (!firstItem.title && !firstItem.content) throw new Error('无效的提示词数据格式，必须包含 title 和 content 字段')
         }
-        if (targetType === 'categories' && (!firstItem.name || !firstItem.color)) {
-           if (firstItem.title) throw new Error('检测到提示词数据，请在提示词库页面导入')
-           throw new Error('无效的分类数据格式')
+        if (targetType === 'categories' && (!firstItem.name)) {
+          // Excel 导入可能只有 name
+          if (firstItem.title) throw new Error('检测到提示词数据，请在提示词库页面导入')
+          throw new Error('无效的分类数据格式，必须包含 name 字段')
         }
-        if (targetType === 'tags' && (!firstItem.name || firstItem.color)) { // Tags usually don't have color, categories do
-           if (firstItem.title) throw new Error('检测到提示词数据，请在提示词库页面导入')
-           if (firstItem.color) throw new Error('检测到分类数据，请在分类管理页面导入')
+        if (targetType === 'tags' && (!firstItem.name)) {
+          if (firstItem.title) throw new Error('检测到提示词数据，请在提示词库页面导入')
+          throw new Error('无效的标签数据格式，必须包含 name 字段')
         }
       }
     } else {
-       throw new Error('无法识别的数据格式')
+      throw new Error('无法识别的数据格式')
     }
 
     if (!Array.isArray(items) || items.length === 0) {
@@ -60,40 +63,58 @@ export async function importData(jsonData: any, targetType: 'library' | 'categor
         for (const item of items) {
           // 确保必要字段存在
           if (!item.title || !item.content) continue
-          
-          // 如果 ID 冲突，生成新 ID (或者可以选择覆盖，这里选择作为新条目导入以防覆盖)
-          // 考虑到用户可能想恢复备份，如果 ID 相同应该覆盖？
-          // 策略：如果 ID 存在则更新，不存在则添加。但为了避免意外覆盖他人数据，
-          // 这里采用：如果 ID 存在，提示跳过或覆盖？
-          // 简化策略：使用 put 操作，存在即更新，不存在即创建。
-          // 但为了安全，如果导入的是外部数据，最好重置 ID。
-          // 假设是恢复备份 -> 保留 ID。假设是导入分享 -> 重置 ID。
-          // 这里简化为：保留 ID (如果是备份恢复)，如果 ID 冲突则覆盖。
-          
-          // 修正：为了避免覆盖现有不相关数据，如果 ID 已存在，询问用户太复杂。
-          // 策略：始终作为新数据导入 (重置 ID)，除非完全一致。
-          // 实际上，为了方便，我们检查 ID 是否存在，存在则生成新 ID。
-          const existing = await db.prompts.get(item.id || 'non-existent')
+
+          // 1. 检查是否存在同名提示词
+          const existingByTitle = await db.prompts.where('title').equals(item.title).first()
+
+          let finalId = item.id || crypto.randomUUID()
+
+          if (existingByTitle) {
+            // 如果存在同名提示词，使用现有 ID 以便覆盖（put 操作）
+            finalId = existingByTitle.id
+          } else {
+            // 如果是新标题，检查 ID 是否被占用（被其他不同标题的提示词占用）
+            if (item.id) {
+              const existingById = await db.prompts.get(item.id)
+              if (existingById) {
+                // ID 冲突但标题不同 -> 生成新 ID 避免覆盖错误的记录
+                finalId = crypto.randomUUID()
+              }
+            }
+          }
+
+          // 处理 Excel 导入可能缺失的字段
+          // Excel 读出来的 tags 可能是逗号分隔的字符串
+          let tags = item.tags
+          if (typeof tags === 'string') {
+            tags = tags.split(',').map((t: string) => t.trim()).filter(Boolean)
+          } else if (!Array.isArray(tags)) {
+            tags = []
+          }
+
           const promptToSave: Prompt = {
             ...item,
-            id: existing ? crypto.randomUUID() : (item.id || crypto.randomUUID()),
+            id: finalId,
+            title: item.title,
+            tags: tags,
+            content: item.content,
+            description: item.description || '',
             createTime: item.createTime || now,
             lastModified: now,
-            // 确保关联的分类 ID 有效，如果无效则设为默认分类？
-            // 暂时保留原 ID，如果分类不存在，UI 会显示未知分类或需要处理
+            categoryId: item.categoryId || '', // Excel 导入可能没有 ID，需要后续处理关联，或者导出时导出 Category Name
+            enabled: item.enabled === undefined ? true : item.enabled === true || item.enabled === 'true',
           }
-          await db.prompts.add(promptToSave)
+
+          await db.prompts.put(promptToSave)
           count++
         }
       } else if (targetType === 'categories') {
         for (const item of items) {
           if (!item.name) continue
           const existing = await db.categories.get(item.id || 'non-existent')
-          // 检查名称是否重复
           const nameConflict = await db.categories.where('name').equals(item.name).first()
-          
+
           if (nameConflict) {
-            // 名称冲突，跳过
             continue
           }
 
@@ -102,7 +123,7 @@ export async function importData(jsonData: any, targetType: 'library' | 'categor
             id: existing ? crypto.randomUUID() : (item.id || crypto.randomUUID()),
             createTime: item.createTime || now,
             lastModified: now,
-            isDefault: false // 导入的分类不应抢占默认状态
+            isDefault: false
           }
           await db.categories.add(categoryToSave)
           count++
@@ -112,7 +133,7 @@ export async function importData(jsonData: any, targetType: 'library' | 'categor
           if (!item.name) continue
           const existing = await db.tags.get(item.id || 'non-existent')
           const nameConflict = await db.tags.where('name').equals(item.name).first()
-          
+
           if (nameConflict) continue
 
           const tagToSave: Tag = {
@@ -162,17 +183,38 @@ export function handleFileSelect(event: React.ChangeEvent<HTMLInputElement>, tar
   if (!file) return
 
   const reader = new FileReader()
+
   reader.onload = async (e) => {
     try {
-      const content = e.target?.result as string
-      const data = JSON.parse(content)
-      await importData(data, targetType)
+      const result = e.target?.result
+      let jsonData: any
+
+      if (file.name.toLowerCase().endsWith('.json')) {
+        jsonData = JSON.parse(result as string)
+      } else {
+        // Excel / CSV
+        // 假设是 ArrayBuffer
+        const workbook = XLSX.read(result, { type: 'array' })
+        const firstSheetName = workbook.SheetNames[0]
+        const worksheet = workbook.Sheets[firstSheetName]
+        // 将 worksheet 转换为 json 对象数组
+        jsonData = XLSX.utils.sheet_to_json(worksheet)
+      }
+
+      await importData(jsonData, targetType)
     } catch (error) {
-      // toast already handled in importData
+      // toast already handled in importData or here if parse error
+      console.error(error)
+      toast.error('解析文件失败', { description: '请检查文件格式是否正确' })
     } finally {
       // Reset input value to allow selecting same file again
       event.target.value = ''
     }
   }
-  reader.readAsText(file)
+
+  if (file.name.toLowerCase().endsWith('.json')) {
+    reader.readAsText(file)
+  } else {
+    reader.readAsArrayBuffer(file)
+  }
 }

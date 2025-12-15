@@ -13,6 +13,8 @@ export interface Prompt {
   author?: string;
   source?: string;
   isPinned?: boolean;
+  usageCount?: number;
+  lastUsedTime?: string;
 }
 
 export interface Category {
@@ -57,10 +59,18 @@ const getNowString = () => {
 
 // Schema definition
 db.version(1).stores({
-  prompts: '&id, &title, categoryId, *tags, createTime, lastModified, author, source, enabled, isPinned', // *tags for multi-valued index
+  prompts: '&id, &title, categoryId, *tags, createTime, lastModified, author, source, enabled, isPinned, usageCount, lastUsedTime', // *tags for multi-valued index
   categories: '&id, &name, createTime, lastModified, isPinned, enabled',
   tags: '&id, &name, createTime, lastModified, isPinned, enabled'
 });
+
+export const incrementUsage = async (id: string) => {
+  const now = getNowString();
+  await db.prompts.where('id').equals(id).modify(p => {
+    p.usageCount = (p.usageCount || 0) + 1;
+    p.lastUsedTime = now;
+  });
+};
 
 db.prompts.hook('creating', (_primaryKey, obj) => {
   const now = getNowString();

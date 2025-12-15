@@ -9,6 +9,7 @@
   "contextSaveSelection": "Save as Prompt",
   "popup": {
     "library": "Prompt Library",
+    "recentUsed": "Recently Used",
     "enabledCountSuffix": "enabled",
     "instructions": "Instructions",
     "quickInput": "Quick Input",
@@ -61,7 +62,15 @@
     "unknown": "Unknown",
     "noData": "No Data",
     "createdOn": "Created at: $1",
-    "modifiedOn": "Modified at: $1"
+    "modifiedOn": "Modified at: $1",
+    "cardView": "Card View",
+    "listView": "List View",
+    "rowsPerPage": "Rows per page",
+    "totalItems": "Total $1 items",
+    "page": "Page",
+    "pageOf": "of",
+    "pageSuffix": "",
+    "showing": "Showing"
   },
   "content": {
     "title": "Prompt Library",
@@ -91,7 +100,8 @@
     "source": "Source",
     "totalPrompts": "Total $1 prompts",
     "enabledCount": "Enabled $1",
-    "sortByTitle": "Title"
+    "sortByTitle": "Title",
+    "sortByUsage": "Usage Frequency"
   },
   "category": {
     "title": "Category Management",
@@ -206,7 +216,11 @@
       "selectTheme": "Select Theme",
       "light": "Light Mode",
       "dark": "Dark Mode",
-      "system": "Follow System"
+      "system": "Follow System",
+      "viewMode": "View Mode",
+      "viewModeDesc": "Choose between card or list view.",
+      "cardView": "Card",
+      "listView": "List"
     },
     "general": {
       "title": "General",

@@ -24,7 +24,7 @@ import { TagDialog } from '@/components/tag-dialog'
 import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type Tag, type Category } from '@/lib/db'
-import { exportToJson } from '@/lib/export'
+import { exportData } from '@/lib/export'
 import { importFromUrl, handleFileSelect } from '@/lib/import'
 import { ImportUrlDialog } from '@/components/import-url-dialog'
 import { useRef } from 'react'
@@ -407,7 +407,7 @@ export default function TagManager() {
             type="file"
             ref={fileInputRef}
             className="hidden"
-            accept=".json"
+            accept=".json,.xlsx,.xls,.csv"
             onChange={(e) => handleFileSelect(e, 'tags')}
           />
 
@@ -428,10 +428,25 @@ export default function TagManager() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button variant="outline" size="sm" className="h-9 w-9 xl:w-auto p-0 xl:px-3 shrink-0" onClick={() => exportToJson(tags, 'tags')}>
-            <Upload className="h-4 w-4 xl:mr-1.5" />
-            <span className="hidden xl:inline text-xs">{t('common.export')}</span>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9 w-9 xl:w-auto p-0 xl:px-3 shrink-0">
+                <Upload className="h-4 w-4 xl:mr-1.5" />
+                <span className="hidden xl:inline text-xs">{t('common.export')}</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => exportData(tags, 'tags', 'json')}>
+                JSON
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportData(tags, 'tags', 'xlsx')}>
+                Excel (.xlsx)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportData(tags, 'tags', 'csv')}>
+                CSV
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button size="sm" onClick={handleAdd} className="h-9 w-9 xl:w-auto p-0 xl:px-3 shrink-0">
             <Plus className="h-4 w-4 xl:mr-1.5" />
             <span className="hidden xl:inline text-xs">{t('common.new')}</span>

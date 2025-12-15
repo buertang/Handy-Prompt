@@ -1,4 +1,4 @@
-import { db } from '@/lib/db';
+import { db, incrementUsage } from '@/lib/db';
 import zh_CN from '@/locales/zh_CN.json';
 import en from '@/locales/en.json';
 
@@ -149,6 +149,24 @@ export default defineBackground(() => {
           const tags = await db.tags.toArray();
           sendResponse({ success: true, categories, tags });
         } catch (error) {
+          console.error('Get categories and tags error:', error);
+          sendResponse({ success: false, error });
+        }
+      })();
+      return true;
+    }
+
+    if (message.type === 'INCREMENT_USAGE') {
+      (async () => {
+        try {
+          if (message.id) {
+            await incrementUsage(message.id);
+            sendResponse({ success: true });
+          } else {
+            sendResponse({ success: false, error: 'Missing prompt ID' });
+          }
+        } catch (error) {
+          console.error('Increment usage error:', error);
           sendResponse({ success: false, error });
         }
       })();

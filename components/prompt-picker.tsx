@@ -141,6 +141,7 @@ export function PromptPicker({ onSelect, onClose, onDragStart }: PromptPickerPro
       case 'Enter':
         e.preventDefault();
         if (prompts[selectedIndex]) {
+          trackUsage(prompts[selectedIndex].id);
           onSelect(prompts[selectedIndex].content);
         }
         break;
@@ -151,6 +152,7 @@ export function PromptPicker({ onSelect, onClose, onDragStart }: PromptPickerPro
           if (prompts[selectedIndex]) {
             navigator.clipboard.writeText(prompts[selectedIndex].content);
             toast.success('已复制到剪贴板');
+            trackUsage(prompts[selectedIndex].id);
           }
         }
         break;
@@ -162,6 +164,14 @@ export function PromptPicker({ onSelect, onClose, onDragStart }: PromptPickerPro
     const item = containerRef.current.querySelector(`[data-prompt-index="${index}"]`);
     if (item) {
       item.scrollIntoView({ block: 'nearest' });
+    }
+  };
+
+  const trackUsage = async (id: string) => {
+    try {
+      await browser.runtime.sendMessage({ type: 'INCREMENT_USAGE', id });
+    } catch (e) {
+      console.error('Failed to track usage:', e);
     }
   };
 
@@ -340,7 +350,10 @@ export function PromptPicker({ onSelect, onClose, onDragStart }: PromptPickerPro
                       ? "bg-accent text-accent-foreground"
                       : "hover:bg-slate-50 dark:hover:bg-slate-800/50"
                   )}
-                  onClick={() => onSelect(prompt.content)}
+                  onClick={() => {
+                    trackUsage(prompt.id);
+                    onSelect(prompt.content);
+                  }}
                   onMouseEnter={() => setSelectedIndex(index)}
                 >
                   <div className="flex items-center justify-between mb-1.5">
@@ -361,6 +374,7 @@ export function PromptPicker({ onSelect, onClose, onDragStart }: PromptPickerPro
                           e.stopPropagation();
                           navigator.clipboard.writeText(prompt.content);
                           toast.success('已复制到剪贴板');
+                          trackUsage(prompt.id);
                         }}
                         title="复制内容"
                       >

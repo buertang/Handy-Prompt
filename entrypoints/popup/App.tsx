@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Toaster } from 'sonner';
+import { Toaster } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
+import { db, incrementUsage } from '@/lib/db';
 import {
   FolderIcon,
+  Clock,
+  Copy,
   CommandIcon,
   MousePointerClickIcon,
   AlertTriangleIcon,
@@ -30,17 +33,26 @@ function App() {
       const all = await db.prompts.toArray();
       const enabled = all.filter(p => p.enabled);
 
-      console.log('DB Query Result:', {
-        total: all.length,
-        enabled: enabled.length
-      });
-
       return enabled;
     } catch (error) {
       console.error("Failed to query prompts:", error);
       return [];
     }
   }) || [];
+
+  const recentPrompts = useLiveQuery(async () => {
+    try {
+      const all = await db.prompts.toArray();
+      return all
+        .filter(p => p.enabled && p.lastUsedTime)
+        .sort((a, b) => (b.lastUsedTime || '').localeCompare(a.lastUsedTime || ''))
+        .slice(0, 3);
+    } catch (error) {
+      console.error("Failed to query recent prompts:", error);
+      return [];
+    }
+  }) || [];
+
   const promptCount = prompts.length;
   const { system, updateSystem, appearance, updateAppearance } = useSettings();
   const [hasShortcut, setHasShortcut] = useState(true);
@@ -196,6 +208,42 @@ function App() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Recent Prompts Card */}
+        {recentPrompts.length > 0 && (
+          <Card className="bg-card/50 shadow-sm border-border/50 gap-3 py-3">
+            <CardHeader className="p-3 pb-1">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Clock className="w-4 h-4" />
+                <CardTitle className="text-sm font-medium">{t('popup.recentUsed')}</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="p-3 pt-2">
+              <div className="space-y-1">
+                {recentPrompts.map(prompt => (
+                  <div
+                    key={prompt.id}
+                    className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50 cursor-pointer group transition-colors"
+                    onClick={() => {
+                      navigator.clipboard.writeText(prompt.content);
+                      toast.success(t('content.copySuccess') || 'Copied to clipboard');
+                      incrementUsage(prompt.id);
+                    }}
+                    title={prompt.content}
+                  >
+                    <div className="flex flex-col min-w-0 flex-1 mr-2">
+                      <span className="text-sm font-medium truncate">{prompt.title}</span>
+                      <span className="text-xs text-muted-foreground truncate opacity-70">{prompt.content}</span>
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Usage Instructions Card */}
         <Card className="bg-card/50 shadow-sm border-border/50 gap-3 py-3">

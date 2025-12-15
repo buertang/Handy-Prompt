@@ -5,6 +5,7 @@ type Theme = 'system' | 'light' | 'dark'
 
 interface AppearanceSettings {
   theme: Theme
+  viewMode: 'card' | 'list'
 }
 
 interface SystemSettings {
@@ -21,7 +22,8 @@ interface UISettings {
 // Define storage items
 const appearanceSettings = storage.defineItem<AppearanceSettings>('sync:appearanceSettings', {
   fallback: {
-    theme: 'system'
+    theme: 'system',
+    viewMode: 'card'
   }
 })
 
@@ -41,7 +43,7 @@ const uiSettings = storage.defineItem<UISettings>('local:uiSettings', {
 })
 
 export function useSettings() {
-  const [appearance, setAppearance] = useState<AppearanceSettings>({ theme: 'system' })
+  const [appearance, setAppearance] = useState<AppearanceSettings>({ theme: 'system', viewMode: 'card' })
   const [system, setSystem] = useState<SystemSettings>({
     notifications: true,
     syncInterval: 15,
@@ -75,7 +77,7 @@ export function useSettings() {
 
     // Watch for changes
     const unwatchAppearance = appearanceSettings.watch((newValue) => {
-      setAppearance(newValue ?? { theme: 'system' })
+      setAppearance(newValue ?? { theme: 'system', viewMode: 'card' })
     })
 
     const unwatchSystem = systemSettings.watch((newValue) => {
@@ -141,11 +143,11 @@ export function useSettings() {
       ])
 
       // Reset to default values
-      const defaultAppearance = { theme: 'system' as Theme }
+      const defaultAppearance = { theme: 'system', viewMode: 'card'  }
       const defaultSystem = { notifications: true, syncInterval: 15, suppressShortcutWarning: false, showCharityDisplay: true }
       const defaultUI = { activeTab: 'home' }
 
-      setAppearance(defaultAppearance)
+      setAppearance(defaultAppearance as AppearanceSettings)
       setSystem(defaultSystem)
       setUI(defaultUI)
     } catch (error) {
