@@ -15,7 +15,10 @@ export default defineConfig({
     default_locale: 'zh_CN',
     name: '__MSG_extName__',
     description: '__MSG_extDesc__',
-    permissions: ['storage', 'contextMenus'],
+    permissions: ['storage', 'contextMenus', 'search'],
+    omnibox: {
+      keyword: 'hp'
+    },
     host_permissions: [
       '<all_urls>',
     ],

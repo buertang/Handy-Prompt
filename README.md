@@ -17,7 +17,12 @@ Handy-Prompt 是一个强大的 Chrome 扩展程序，专为 Prompt Engineering 
 - **Notion 同步**：支持配置 Notion Integration Token 和 Database ID，实现双向同步（配置中）。
 - **WebDAV 备份**：支持坚果云、Nextcloud 等 WebDAV 协议网盘，一键备份和恢复数据。
 
-### 3. ⚙️ 个性化设置
+### 3. 🔍 地址栏快捷搜索 (Omnibox)
+- 在 Chrome 地址栏输入 `hp` + `空格`，即可激活快速搜索模式。
+- 输入关键词查找提示词，上下键选择。
+- 选中回车后，将调用默认引擎搜索提示词内容。
+
+### 4. ⚙️ 个性化设置
 - **主题切换**：支持浅色、深色及跟随系统主题。
 - **快捷键**：支持自定义快捷键唤起扩展。
 

@@ -17,7 +17,7 @@ function getTranslation(lang: Language, key: keyof typeof zh_CN) {
 
 async function updateContextMenus() {
   let lang: Language = 'zh_CN'; // Default
-  
+
   try {
     const syncStored = await browser.storage.sync.get(STORAGE_KEY);
     if (syncStored[STORAGE_KEY]) {
@@ -63,6 +63,19 @@ async function updateContextMenus() {
     id: 'save_selection',
     title: getTranslation(lang, 'contextSaveSelection'),
     contexts: ['selection']
+  });
+}
+
+function escapeXml(unsafe: string) {
+  return unsafe.replace(/[<>&'"]/g, function (c) {
+    switch (c) {
+      case '<': return '&lt;';
+      case '>': return '&gt;';
+      case '&': return '&amp;';
+      case '\'': return '&apos;';
+      case '"': return '&quot;';
+      default: return c;
+    }
   });
 }
 
@@ -154,13 +167,13 @@ export default defineBackground(() => {
               'Cache-Control': 'no-cache'
             },
             // 明确指定不发送 Referrer
-            referrerPolicy: 'no-referrer' 
+            referrerPolicy: 'no-referrer'
           });
-          
+
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
           }
-          
+
           // 尝试获取文本，处理可能的非 JSON 响应（如 Cloudflare 页面）
           const text = await response.text();
           try {
@@ -243,6 +256,53 @@ export default defineBackground(() => {
         console.error('Failed to navigate to options page:', error);
         await browser.tabs.create({ url: targetUrl });
       }
+    }
+  });
+
+  // Handle Omnibox input
+  browser.omnibox.onInputChanged.addListener(async (text, suggest) => {
+    if (!text) return;
+    try {
+      const all = await db.prompts.toArray();
+      const enabled = all.filter(p => p.enabled);
+      const query = text.toLowerCase();
+
+      const filtered = enabled.filter(p =>
+        p.title.toLowerCase().includes(query) ||
+        p.content.toLowerCase().includes(query) ||
+        p.tags.some(t => t.toLowerCase().includes(query))
+      ).slice(0, 5); // Limit to 5 suggestions
+
+      const suggestions = filtered.map(p => ({
+        content: p.content,
+        description: `${escapeXml(p.title)} - <dim>${escapeXml(p.content.substring(0, 50))}${p.content.length > 50 ? '...' : ''}</dim>`
+      }));
+
+      suggest(suggestions);
+    } catch (error) {
+      console.error('Omnibox search error:', error);
+    }
+  });
+
+  // Handle Omnibox selection
+  browser.omnibox.onInputEntered.addListener(async (text, disposition) => {
+    console.log('Omnibox input entered:', text, disposition);
+    try {
+      const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+      const activeTab = tabs[0];
+      if (!activeTab?.id) return;
+
+      const anyBrowser = browser as any;
+      if (anyBrowser.search?.query) {
+        await anyBrowser.search.query({
+          text,
+          tabId: activeTab.id,
+        });
+      } else {
+        await browser.tabs.update(activeTab.id, { url: text });
+      }
+    } catch (error) {
+      console.error('Omnibox navigation error:', error);
     }
   });
 });
