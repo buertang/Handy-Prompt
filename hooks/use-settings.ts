@@ -6,6 +6,7 @@ type Theme = 'system' | 'light' | 'dark'
 interface AppearanceSettings {
   theme: Theme
   viewMode: 'card' | 'list'
+  popupMode: 'follow' | 'center'
 }
 
 interface SystemSettings {
@@ -23,7 +24,8 @@ interface UISettings {
 const appearanceSettings = storage.defineItem<AppearanceSettings>('sync:appearanceSettings', {
   fallback: {
     theme: 'system',
-    viewMode: 'card'
+    viewMode: 'card',
+    popupMode: 'follow'
   }
 })
 
@@ -43,7 +45,7 @@ const uiSettings = storage.defineItem<UISettings>('local:uiSettings', {
 })
 
 export function useSettings() {
-  const [appearance, setAppearance] = useState<AppearanceSettings>({ theme: 'system', viewMode: 'card' })
+  const [appearance, setAppearance] = useState<AppearanceSettings>({ theme: 'system', viewMode: 'card', popupMode: 'follow' })
   const [system, setSystem] = useState<SystemSettings>({
     notifications: true,
     syncInterval: 15,
@@ -77,7 +79,7 @@ export function useSettings() {
 
     // Watch for changes
     const unwatchAppearance = appearanceSettings.watch((newValue) => {
-      setAppearance(newValue ?? { theme: 'system', viewMode: 'card' })
+      setAppearance(newValue ?? { theme: 'system', viewMode: 'card', popupMode: 'follow' })
     })
 
     const unwatchSystem = systemSettings.watch((newValue) => {
@@ -143,7 +145,7 @@ export function useSettings() {
       ])
 
       // Reset to default values
-      const defaultAppearance = { theme: 'system', viewMode: 'card'  }
+      const defaultAppearance = { theme: 'system', viewMode: 'card' }
       const defaultSystem = { notifications: true, syncInterval: 15, suppressShortcutWarning: false, showCharityDisplay: true }
       const defaultUI = { activeTab: 'home' }
 

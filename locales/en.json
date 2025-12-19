@@ -220,7 +220,11 @@
       "viewMode": "View Mode",
       "viewModeDesc": "Choose between card or list view.",
       "cardView": "Card",
-      "listView": "List"
+      "listView": "List",
+      "popupPosition": "Prompt Picker Position",
+      "popupPositionDesc": "Choose where the prompt picker appears when invoked via /p (Save dialog is always centered).",
+      "followCursor": "Follow Cursor",
+      "centerScreen": "Center Screen"
     },
     "general": {
       "title": "General",

@@ -41,6 +41,37 @@ function ContentApp() {
   const [activeElement, setActiveElement] = useState<HTMLElement | null>(null);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [saveContent, setSaveContent] = useState('');
+  const [popupMode, setPopupMode] = useState<'follow' | 'center'>('follow');
+  const popupModeRef = useRef<'follow' | 'center'>('follow');
+
+  // Load settings
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const stored = await browser.storage.sync.get('sync:appearanceSettings');
+        const settings = stored['sync:appearanceSettings'];
+        if (settings && settings.popupMode) {
+          setPopupMode(settings.popupMode);
+          popupModeRef.current = settings.popupMode;
+        }
+      } catch (e) {
+        console.warn('Failed to load settings:', e);
+      }
+    };
+    loadSettings();
+
+    const handleStorageChange = (changes: any, areaName: string) => {
+      if (areaName === 'sync' && changes['sync:appearanceSettings']) {
+        const newValue = changes['sync:appearanceSettings'].newValue;
+        if (newValue && newValue.popupMode) {
+          setPopupMode(newValue.popupMode);
+          popupModeRef.current = newValue.popupMode;
+        }
+      }
+    };
+    browser.storage.onChanged.addListener(handleStorageChange);
+    return () => browser.storage.onChanged.removeListener(handleStorageChange);
+  }, []);
 
   // Track previous focus to restore it
   const lastFocusedRef = useRef<HTMLElement | null>(null);
@@ -114,10 +145,56 @@ function ContentApp() {
       if (textBeforeCursor.endsWith('/p')) {
         console.log('Trigger /p detected');
         const rect = target.getBoundingClientRect();
-        setPickerPosition({
-          top: rect.bottom + window.scrollY + 5,
-          left: rect.left + window.scrollX
-        });
+
+        if (popupModeRef.current === 'center') {
+          setPickerPosition({
+            top: Math.max(0, window.innerHeight / 2 - 225),
+            left: Math.max(0, window.innerWidth / 2 - 250)
+          });
+        } else {
+          // Follow mode with collision detection
+          const pickerHeight = 450;
+          const pickerWidth = 500;
+
+          let top = rect.bottom + window.scrollY + 5;
+          let left = rect.left + window.scrollX;
+
+          // Check bottom edge collision
+          const viewportBottom = window.scrollY + window.innerHeight;
+          if (top + pickerHeight > viewportBottom) {
+            // Not enough space below, check above
+            if (rect.top + window.scrollY - pickerHeight - 5 > window.scrollY) {
+              top = rect.top + window.scrollY - pickerHeight - 5;
+            } else {
+              // Not enough space above either, pick the side with more space
+              const spaceBelow = viewportBottom - (rect.bottom + window.scrollY);
+              const spaceAbove = (rect.top + window.scrollY) - window.scrollY;
+
+              if (spaceAbove > spaceBelow) {
+                top = rect.top + window.scrollY - pickerHeight - 5;
+                // If it goes off-screen top, clamp it
+                if (top < window.scrollY) top = window.scrollY + 10;
+              } else {
+                // Clamp to viewport bottom if sticking to bottom
+                if (top + pickerHeight > viewportBottom) {
+                  top = viewportBottom - pickerHeight - 10;
+                }
+              }
+            }
+          }
+
+          // Check right edge collision
+          const viewportRight = window.scrollX + window.innerWidth;
+          if (left + pickerWidth > viewportRight) {
+            left = viewportRight - pickerWidth - 20;
+          }
+          if (left < window.scrollX) {
+            left = window.scrollX + 10;
+          }
+
+          setPickerPosition({ top, left });
+        }
+
         setActiveElement(target);
         setPickerOpen(true);
       } else {
@@ -164,16 +241,55 @@ function ContentApp() {
             lastFocusedRef.current = target;
             setActiveElement(target);
             const rect = target.getBoundingClientRect();
-            setPickerPosition({
-              top: rect.bottom + window.scrollY + 5,
-              left: rect.left + window.scrollX
-            });
+
+            if (popupModeRef.current === 'center') {
+              setPickerPosition({
+                top: Math.max(0, window.innerHeight / 2 - 225),
+                left: Math.max(0, window.innerWidth / 2 - 250)
+              });
+            } else {
+              // Same collision logic as above
+              const pickerHeight = 450;
+              const pickerWidth = 500;
+
+              let top = rect.bottom + window.scrollY + 5;
+              let left = rect.left + window.scrollX;
+
+              const viewportBottom = window.scrollY + window.innerHeight;
+              if (top + pickerHeight > viewportBottom) {
+                if (rect.top + window.scrollY - pickerHeight - 5 > window.scrollY) {
+                  top = rect.top + window.scrollY - pickerHeight - 5;
+                } else {
+                  const spaceBelow = viewportBottom - (rect.bottom + window.scrollY);
+                  const spaceAbove = (rect.top + window.scrollY) - window.scrollY;
+                  if (spaceAbove > spaceBelow) {
+                    top = rect.top + window.scrollY - pickerHeight - 5;
+                    if (top < window.scrollY) top = window.scrollY + 10;
+                  } else {
+                    if (top + pickerHeight > viewportBottom) {
+                      top = viewportBottom - pickerHeight - 10;
+                    }
+                  }
+                }
+              }
+
+              const viewportRight = window.scrollX + window.innerWidth;
+              if (left + pickerWidth > viewportRight) {
+                left = viewportRight - pickerWidth - 20;
+              }
+              if (left < window.scrollX) {
+                left = window.scrollX + 10;
+              }
+
+              setPickerPosition({ top, left });
+            }
+
             setPickerOpen(true);
           } else {
             // Show centered if no input focused
             setPickerPosition({
-              top: window.innerHeight / 2 - 200,
-              left: window.innerWidth / 2 - 250
+              top: Math.max(0, window.innerHeight / 2 - 225),
+              left: Math.max(0, window.innerWidth / 2 - 250)
             });
             setPickerOpen(true);
           }

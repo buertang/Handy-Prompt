@@ -4,7 +4,7 @@ import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { useSettings } from '@/hooks/use-settings'
 import { useTheme } from '@/hooks/use-theme'
-import { Moon, Sun, Monitor, Keyboard, Languages, LayoutGrid, List } from 'lucide-react'
+import { Moon, Sun, Monitor, Keyboard, Languages, LayoutGrid, List, MousePointer2, LayoutTemplate } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { browser } from 'wxt/browser'
@@ -101,6 +101,46 @@ export default function Settings() {
               >
                 <List className="h-4 w-4 mr-2" />
                 {t('settingsPage.appearance.listView')}
+              </Button>
+            </div>
+          </div>
+
+          {/* Popup Position */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <Label className="text-base">{t('settingsPage.appearance.popupPosition')}</Label>
+              <p className="text-sm text-muted-foreground">
+                {t('settingsPage.appearance.popupPositionDesc')}
+              </p>
+            </div>
+            <div className="flex items-center p-1 bg-muted rounded-lg border shadow-inner">
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "flex-1 md:flex-none h-8 px-4 rounded-md transition-all duration-200",
+                  appearance.popupMode === 'follow'
+                    ? "bg-background text-foreground shadow-sm font-medium"
+                    : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
+                )}
+                onClick={() => updateAppearance({ popupMode: 'follow' })}
+              >
+                <MousePointer2 className="h-4 w-4 mr-2" />
+                {t('settingsPage.appearance.followCursor')}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "flex-1 md:flex-none h-8 px-4 rounded-md transition-all duration-200",
+                  appearance.popupMode === 'center'
+                    ? "bg-background text-foreground shadow-sm font-medium"
+                    : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
+                )}
+                onClick={() => updateAppearance({ popupMode: 'center' })}
+              >
+                <LayoutTemplate className="h-4 w-4 mr-2" />
+                {t('settingsPage.appearance.centerScreen')}
               </Button>
             </div>
           </div>

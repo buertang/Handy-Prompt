@@ -220,7 +220,11 @@
       "viewMode": "视图模式",
       "viewModeDesc": "选择卡片视图或列表视图。",
       "cardView": "卡片",
-      "listView": "列表"
+      "listView": "列表",
+      "popupPosition": "提示词面板位置",
+      "popupPositionDesc": "设置使用 /p 唤出提示词面板时的显示位置（保存提示词弹窗始终居中）。",
+      "followCursor": "跟随光标",
+      "centerScreen": "屏幕居中"
     },
     "general": {
       "title": "通用",
