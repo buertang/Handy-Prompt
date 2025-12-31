@@ -1,6 +1,6 @@
 {
   "name": "handy-prompt",
-  "description": "做自己随手可用的prompt工具",
+  "description": "__MSG_extDesc__",
   "private": true,
   "version": "1.0.6",
   "type": "module",

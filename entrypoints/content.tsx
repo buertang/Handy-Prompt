@@ -5,6 +5,7 @@ import { ContentSaveDialog } from '@/components/content-save-dialog';
 import { Toaster } from '@/components/ui/sonner';
 import { useState, useEffect, useRef } from 'react';
 import { browser } from 'wxt/browser';
+import { useSettings } from '@/hooks/use-settings';
 
 export default defineContentScript({
   matches: ['<all_urls>'],
@@ -43,6 +44,54 @@ function ContentApp() {
   const [saveContent, setSaveContent] = useState('');
   const [popupMode, setPopupMode] = useState<'follow' | 'center'>('follow');
   const popupModeRef = useRef<'follow' | 'center'>('follow');
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Theme monitoring for shadow DOM
+  const { appearance } = useSettings();
+
+  // Get system theme
+  const getSystemTheme = (): 'light' | 'dark' => {
+    if (typeof window === 'undefined' || !window.matchMedia) {
+      return 'light';
+    }
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  };
+
+  // Apply theme to shadow DOM container
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const resolvedTheme = appearance.theme === 'system' ? getSystemTheme() : appearance.theme;
+
+    if (resolvedTheme === 'dark') {
+      containerRef.current.classList.add('dark');
+    } else {
+      containerRef.current.classList.remove('dark');
+    }
+  }, [appearance.theme]);
+
+  // Listen for system theme changes when in system mode
+  useEffect(() => {
+    if (appearance.theme !== 'system' || !containerRef.current) return;
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const handleSystemThemeChange = () => {
+      if (!containerRef.current) return;
+      const systemTheme = getSystemTheme();
+      if (systemTheme === 'dark') {
+        containerRef.current.classList.add('dark');
+      } else {
+        containerRef.current.classList.remove('dark');
+      }
+    };
+
+    // Execute immediately
+    handleSystemThemeChange();
+
+    mediaQuery.addEventListener('change', handleSystemThemeChange);
+    return () => mediaQuery.removeEventListener('change', handleSystemThemeChange);
+  }, [appearance.theme]);
 
   // Load settings
   useEffect(() => {
@@ -351,7 +400,7 @@ function ContentApp() {
   };
 
   return (
-    <div className="font-sans text-base text-gray-900 antialiased pointer-events-none fixed inset-0 z-[2147483647]">
+    <div ref={containerRef} className="font-sans text-base text-foreground antialiased pointer-events-none fixed inset-0 z-[2147483647]">
       {/* Inject styles wrapper if needed, but WXT Shadow DOM handles isolation */}
       {pickerOpen && (
         <div

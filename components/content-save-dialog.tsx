@@ -129,15 +129,15 @@ export function ContentSaveDialog({ open, onOpenChange, initialContent }: Conten
 
   // Manual Modal Implementation to avoid Portal issues in Shadow DOM
   return (
-    <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-[600px] bg-background text-foreground rounded-lg shadow-2xl border overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/60 dark:bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
+      <div className="w-[600px] bg-background text-foreground rounded-xl shadow-2xl border border-border/50 overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-300">
         {/* Header */}
-        <div className="px-6 py-3 border-b shrink-0 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Plus className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold">新增提示词</h2>
+        <div className="px-6 py-3.5 border-b border-border/50 shrink-0 flex items-center justify-between bg-muted/10">
+          <div className="flex items-center gap-2.5">
+            <Plus className="w-5 h-5 text-primary dark:text-primary" />
+            <h2 className="text-lg font-semibold text-foreground">新增提示词</h2>
           </div>
-          <button onClick={() => onOpenChange(false)} className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground">
+          <button onClick={() => onOpenChange(false)} className="p-1.5 hover:bg-muted/80 rounded-md text-muted-foreground hover:text-foreground transition-all duration-150">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -231,7 +231,7 @@ export function ContentSaveDialog({ open, onOpenChange, initialContent }: Conten
                   placeholder="选择或输入标签..."
                   creatable
                   emptyIndicator={
-                    <p className="text-center text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-center text-sm text-muted-foreground">
                       没有找到标签，按回车创建
                     </p>
                   }
@@ -239,9 +239,9 @@ export function ContentSaveDialog({ open, onOpenChange, initialContent }: Conten
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+                <div className="flex items-center justify-between p-3 border border-border/50 rounded-lg bg-muted/20 hover:bg-muted/30 transition-colors">
                   <div className="space-y-0.5">
-                    <Label htmlFor="pinned" className="flex items-center gap-1">
+                    <Label htmlFor="pinned" className="flex items-center gap-1.5 text-foreground">
                       置顶 <Pin className="w-3.5 h-3.5" />
                     </Label>
                     <div className="text-xs text-muted-foreground">固定在顶部</div>
@@ -253,9 +253,9 @@ export function ContentSaveDialog({ open, onOpenChange, initialContent }: Conten
                   />
                 </div>
 
-                <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+                <div className="flex items-center justify-between p-3 border border-border/50 rounded-lg bg-muted/20 hover:bg-muted/30 transition-colors">
                   <div className="space-y-0.5">
-                    <Label htmlFor="enabled">启用状态</Label>
+                    <Label htmlFor="enabled" className="text-foreground">启用状态</Label>
                     <div className="text-xs text-muted-foreground">是否启用该提示词</div>
                   </div>
                   <Switch
@@ -270,7 +270,7 @@ export function ContentSaveDialog({ open, onOpenChange, initialContent }: Conten
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t shrink-0 flex justify-end gap-2 bg-muted/10">
+        <div className="px-6 py-4 border-t border-border/50 shrink-0 flex justify-end gap-2.5 bg-muted/10">
           <Button variant="outline" onClick={() => onOpenChange(false)}>取消</Button>
           <Button onClick={handleSave} disabled={saving || loading || !isValid}>
             {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
