@@ -54,6 +54,7 @@
     "name": "名称",
     "promptCount": "提示词数量",
     "description": "描述",
+    "content": "内容",
     "localImport": "本地导入",
     "urlImport": "URL 导入",
     "bulkEnable": "一键启用",

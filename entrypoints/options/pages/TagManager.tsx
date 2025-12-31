@@ -296,18 +296,34 @@ export default function TagManager() {
       await db.transaction('rw', db.prompts, db.tags, async () => {
         if (deleteOption === 'move') {
           // Move to "Default" tag
-          const defaultTagName = t('tag.defaultTag')
+          let targetTagName: string
 
-          // Ensure "Default" tag exists
-          const existingDefault = await db.tags.where('name').equals(defaultTagName).first()
-          if (!existingDefault) {
-            const now = new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-');
-            await db.tags.add({
-              id: crypto.randomUUID(),
-              name: defaultTagName,
-              createTime: now,
-              lastModified: now
-            })
+          // 1. Try to find existing default tag (by flag first)
+          const systemDefaultTag = await db.tags.filter(t => !!t.isDefault).first()
+
+          if (systemDefaultTag) {
+            targetTagName = systemDefaultTag.name
+          } else {
+            // 2. If no system default tag, check if a tag with the localized default name exists
+            const localizedDefaultName = t('tag.defaultTag')
+            const existingByName = await db.tags.where('name').equals(localizedDefaultName).first()
+
+            if (existingByName) {
+              targetTagName = existingByName.name
+            } else {
+              // 3. Create new default tag
+              targetTagName = localizedDefaultName
+              const now = new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-');
+              await db.tags.add({
+                id: crypto.randomUUID(),
+                name: targetTagName,
+                createTime: now,
+                lastModified: now,
+                isDefault: true, // Fix: Ensure it is marked as default
+                isPinned: true,
+                enabled: true
+              })
+            }
           }
 
           // Update prompts: replace deleted tag with default tag
@@ -316,8 +332,8 @@ export default function TagManager() {
               // Remove deleted tag
               const newTags = prompt.tags.filter(t => t !== tagToDelete.name)
               // Add default tag if not present
-              if (!newTags.includes(defaultTagName)) {
-                newTags.push(defaultTagName)
+              if (!newTags.includes(targetTagName)) {
+                newTags.push(targetTagName)
               }
               prompt.tags = newTags
             }

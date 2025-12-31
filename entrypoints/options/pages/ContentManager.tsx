@@ -62,13 +62,6 @@ import { PromptDialog } from '@/components/prompt-dialog'
 import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog'
 import { browser } from 'wxt/browser';
 import { useSettings } from '@/hooks/use-settings'
-
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 import { useI18n } from '@/components/i18n-provider'
 
 export default function ContentManager() {
@@ -756,32 +749,42 @@ export default function ContentManager() {
                         </div>
                       </div>
                     </HoverCardTrigger>
-                    <HoverCardContent className="w-80 sm:w-96 p-0 overflow-hidden" align="start">
-                      <ScrollArea className="max-h-[320px] w-full">
-                        <div className="p-4 space-y-3">
-                          <div>
-                            <h4 className="font-semibold text-sm flex items-center gap-2">
-                              {prompt.title}
-                              {prompt.isPinned && <Pin className="h-3 w-3 text-primary rotate-45" />}
-                            </h4>
-                            {prompt.description && (
-                              <p className="text-xs text-muted-foreground mt-1">{prompt.description}</p>
-                            )}
-                          </div>
+                    <HoverCardContent className="w-80 sm:w-96 p-0 overflow-hidden flex flex-col" align="start">
+                      <div className="px-4 py-3 border-b bg-muted/10 shrink-0">
+                        <h4 className="font-semibold text-sm flex items-center gap-2 truncate">
+                          {prompt.title}
+                          {prompt.isPinned && <Pin className="h-3 w-3 text-primary rotate-45 shrink-0" />}
+                        </h4>
+                      </div>
 
-                          <div className="space-y-1">
-                            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{t('common.content' as any)}</span>
-                            <div className="text-xs font-mono bg-muted/50 p-2.5 rounded border break-words break-all whitespace-pre-wrap">
+                      <ScrollArea className="h-[280px] w-full bg-background">
+                        <div className="p-4 space-y-4">
+                          {prompt.description && (
+                            <div className="space-y-1.5">
+                              <h5 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                                {t('common.description')}
+                              </h5>
+                              <p className="text-sm text-muted-foreground break-words whitespace-pre-wrap leading-relaxed">
+                                {prompt.description}
+                              </p>
+                            </div>
+                          )}
+
+                          <div className="space-y-1.5">
+                            <h5 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                              {t('common.content')}
+                            </h5>
+                            <div className="text-xs font-mono bg-muted/50 p-2.5 rounded border break-words break-all whitespace-pre-wrap leading-relaxed">
                               {prompt.content}
                             </div>
                           </div>
-
-                          <div className="flex items-center justify-between text-[10px] text-muted-foreground border-t pt-2">
-                            <span>{t('common.createdOn').replace('$1', prompt.createTime?.split(' ')[0] || '')}</span>
-                            <span className="font-mono">ID: {prompt.id.slice(0, 8)}</span>
-                          </div>
                         </div>
                       </ScrollArea>
+
+                      <div className="px-4 py-2 bg-muted/20 border-t flex items-center justify-between text-[10px] text-muted-foreground shrink-0">
+                        <span>{t('common.createdOn').replace('$1', prompt.createTime?.split(' ')[0] || '')}</span>
+                        <span className="font-mono">ID: {prompt.id.slice(0, 8)}</span>
+                      </div>
                     </HoverCardContent>
                   </HoverCard>
                 </div>
@@ -884,14 +887,42 @@ export default function ContentManager() {
                       {prompt.description || prompt.content}
                     </p>
                   </HoverCardTrigger>
-                  <HoverCardContent className="w-80 p-0 overflow-hidden">
-                    <ScrollArea className="h-[200px] w-full">
-                      <div className="space-y-1 p-4">
-                        <p className="text-sm text-muted-foreground break-words break-all whitespace-pre-wrap">
-                          {prompt.description || prompt.content}
-                        </p>
+                  <HoverCardContent className="w-80 sm:w-96 p-0 overflow-hidden flex flex-col" align="start">
+                    <div className="px-4 py-3 border-b bg-muted/10 shrink-0">
+                      <h4 className="font-semibold text-sm flex items-center gap-2 truncate">
+                        {prompt.title}
+                        {prompt.isPinned && <Pin className="h-3 w-3 text-primary rotate-45 shrink-0" />}
+                      </h4>
+                    </div>
+
+                    <ScrollArea className="h-[280px] w-full bg-background">
+                      <div className="p-4 space-y-4">
+                        {prompt.description && (
+                          <div className="space-y-1.5">
+                            <h5 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                              {t('common.description')}
+                            </h5>
+                            <p className="text-sm text-muted-foreground break-words whitespace-pre-wrap leading-relaxed">
+                              {prompt.description}
+                            </p>
+                          </div>
+                        )}
+
+                        <div className="space-y-1.5">
+                          <h5 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                            {t('common.content')}
+                          </h5>
+                          <div className="text-xs font-mono bg-muted/50 p-2.5 rounded border break-words break-all whitespace-pre-wrap leading-relaxed">
+                            {prompt.content}
+                          </div>
+                        </div>
                       </div>
                     </ScrollArea>
+
+                    <div className="px-4 py-2 bg-muted/20 border-t flex items-center justify-between text-[10px] text-muted-foreground shrink-0">
+                      <span>{t('common.createdOn').replace('$1', prompt.createTime?.split(' ')[0] || '')}</span>
+                      <span className="font-mono">ID: {prompt.id.slice(0, 8)}</span>
+                    </div>
                   </HoverCardContent>
                 </HoverCard>
                 <div className='flex flex-col gap-1 text-xs text-muted-foreground'>

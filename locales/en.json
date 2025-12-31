@@ -54,6 +54,7 @@
     "name": "Name",
     "promptCount": "Prompt Count",
     "description": "Description",
+    "content": "Content",
     "localImport": "Local Import",
     "urlImport": "URL Import",
     "bulkEnable": "Bulk Enable",
