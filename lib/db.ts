@@ -99,11 +99,6 @@ db.prompts.hook('creating', (_primaryKey, obj) => {
   if (!obj.lastModified || !obj.lastModified.trim()) {
     obj.lastModified = now;
   }
-
-  // 默认标签处理：如果没有标签，添加"默认"
-  if (!obj.tags || obj.tags.length === 0) {
-    obj.tags = [getDefaultName()];
-  }
 });
 
 db.prompts.hook('updating', (mods: any, _primaryKey, obj) => {

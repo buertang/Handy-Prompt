@@ -109,7 +109,7 @@ const SidebarGroupedMenuItems = ({
   onItemClick: (label: I18nKey, subLabel?: I18nKey) => void
 }) => {
   const { t } = useI18n()
-  
+
   return (
     <SidebarGroup>
       {groupLabel && <SidebarGroupLabel>{groupLabel}</SidebarGroupLabel>}
@@ -273,7 +273,7 @@ const ApplicationShellContent = () => {
             <div className='text-sidebar-accent-foreground flex flex-col items-center'>
               <p className='text-sm'>Handy Prompt</p>
             </div>
-            <div className='flex items-center gap-5'>
+            {/* <div className='flex items-center gap-5'>
               <a href='#'>
                 <Facebook />
               </a>
@@ -286,7 +286,7 @@ const ApplicationShellContent = () => {
               <a href='#'>
                 <X />
               </a>
-            </div>
+            </div> */}
           </SidebarHeader>
           <SidebarContent>
             <SidebarGroupedMenuItems data={menuItems} onItemClick={handleMenuClick} />

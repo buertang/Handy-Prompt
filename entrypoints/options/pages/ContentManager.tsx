@@ -81,11 +81,29 @@ export default function ContentManager() {
 
   const [columns, setColumns] = useState(() => {
     const max = getInitialMaxCols()
-    // Default preference could be stored in localStorage, but for now default to 3 or max
+    // Try to load saved preference from localStorage
+    const savedColumns = localStorage.getItem('content-manager-columns')
+    if (savedColumns) {
+      const parsed = parseInt(savedColumns, 10)
+      if (!isNaN(parsed) && parsed >= 1 && parsed <= 5) {
+        return Math.min(parsed, max)
+      }
+    }
+    // Default to 3 columns or max if less than 3
     return Math.min(3, max)
   })
   const [maxAvailableColumns, setMaxAvailableColumns] = useState(getInitialMaxCols)
-  const [layoutMode, setLayoutMode] = useState<'dropdown' | 'icon' | 'full'>('full')
+
+  // Get initial layoutMode from localStorage or default to 'full'
+  const getInitialLayoutMode = (): 'dropdown' | 'icon' | 'full' => {
+    const saved = localStorage.getItem('content-manager-layout-mode')
+    if (saved && (saved === 'dropdown' || saved === 'icon' || saved === 'full')) {
+      return saved as 'dropdown' | 'icon' | 'full'
+    }
+    return 'full'
+  }
+
+  const [layoutMode, setLayoutMode] = useState<'dropdown' | 'icon' | 'full'>(getInitialLayoutMode)
 
   const gridRef = useRef<HTMLDivElement>(null)
 
@@ -121,12 +139,17 @@ export default function ContentManager() {
 
   // 2. Handle layoutMode based on grid container width and active columns
   useEffect(() => {
+    // Wait for settings to load before calculating layout mode
+    if (settingsLoading) return
     if (!gridRef.current) return
 
     const calculateLayoutMode = () => {
       if (!gridRef.current) return
 
       const containerWidth = gridRef.current.clientWidth
+      // Ensure container has valid width
+      if (containerWidth === 0) return
+
       const actualColumns = Math.min(columns, maxAvailableColumns)
 
       const gap = 16
@@ -134,13 +157,18 @@ export default function ContentManager() {
       const cols = actualColumns < 1 ? 1 : actualColumns
       const cardWidth = (containerWidth - (gap * (cols - 1))) / cols
 
+      let newMode: 'dropdown' | 'icon' | 'full'
       if (cardWidth < 320) {
-        setLayoutMode('dropdown')
+        newMode = 'dropdown'
       } else if (cardWidth < 600) {
-        setLayoutMode('icon')
+        newMode = 'icon'
       } else {
-        setLayoutMode('full')
+        newMode = 'full'
       }
+
+      setLayoutMode(newMode)
+      // Save to localStorage for next time
+      localStorage.setItem('content-manager-layout-mode', newMode)
     }
 
     const observer = new ResizeObserver(() => {
@@ -148,11 +176,21 @@ export default function ContentManager() {
     })
 
     observer.observe(gridRef.current)
-    // Initial calculation
-    calculateLayoutMode()
+
+    // Initial calculation - use setTimeout and requestAnimationFrame to ensure DOM is fully rendered
+    setTimeout(() => {
+      requestAnimationFrame(() => {
+        calculateLayoutMode()
+      })
+    }, 100)  // Increase timeout slightly to ensure rendering is complete
 
     return () => observer.disconnect()
-  }, [columns, maxAvailableColumns, appearance.viewMode])
+  }, [columns, maxAvailableColumns, appearance.viewMode, settingsLoading])
+
+  // Save column preference to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('content-manager-columns', columns.toString())
+  }, [columns])
 
   // Auto-adjust columns if window shrinks logic removed to preserve user preference
   // CSS handles the actual layout responsiveness

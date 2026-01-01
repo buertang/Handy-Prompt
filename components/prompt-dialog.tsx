@@ -110,16 +110,9 @@ export function PromptDialog({
     // Update modify time
     const now = new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-')
 
-    const author = (formData.author || '').trim()
-    const source = (formData.source || '').trim()
-    const finalAuthor = !isEditMode && !author && !source ? 'system' : formData.author
-    const finalSource = !isEditMode && !author && !source ? 'system' : formData.source
-
     onSave({
       ...formData,
       tags,
-      author: finalAuthor,
-      source: finalSource,
       lastModified: now
     })
     onOpenChange(false)
@@ -287,7 +280,7 @@ export function PromptDialog({
             <Button onClick={handleSave} disabled={!isValid}>保存</Button>
           </div>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </DialogContent >
+    </Dialog >
   )
 }
