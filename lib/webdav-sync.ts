@@ -141,15 +141,22 @@ export const restoreFromWebDav = async (config: WebDavConfig, fileName: string) 
   const tags = json.data.tags as Tag[]
 
   await db.transaction('rw', db.prompts, db.categories, db.tags, async () => {
+    // Clear prompts - no hooks to worry about
     await db.prompts.clear()
-    await db.categories.clear()
-    await db.tags.clear()
+    
+    // For categories: delete only non-default items, then upsert from backup
+    await db.categories.filter(c => !c.isDefault).delete()
     if (categories.length) {
-      await db.categories.bulkAdd(categories)
+      await db.categories.bulkPut(categories)
     }
+    
+    // For tags: delete only non-default items, then upsert from backup
+    await db.tags.filter(t => !t.isDefault).delete()
     if (tags.length) {
-      await db.tags.bulkAdd(tags)
+      await db.tags.bulkPut(tags)
     }
+    
+    // Add prompts
     if (prompts.length) {
       await db.prompts.bulkAdd(prompts)
     }
