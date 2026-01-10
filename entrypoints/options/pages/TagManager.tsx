@@ -478,7 +478,7 @@ export default function TagManager() {
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-2">
                   <TagIcon className="w-4 h-4 text-primary" />
-                  <CardTitle className="text-base font-bold">{tag.name}</CardTitle>
+                  <CardTitle className="text-base font-bold line-clamp-2 break-words leading-tight">{tag.name}</CardTitle>
                   {tag.isDefault && (
                     <Badge variant="secondary" className="text-[10px] h-5 px-1.5 bg-secondary text-secondary-foreground border-border">
                       {t('common.default')}

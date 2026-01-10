@@ -897,7 +897,7 @@ export default function ContentManager() {
               <CardHeader className='pb-2 pt-4 px-4'>
                 <div className='flex flex-col gap-2'>
                   <div className='flex justify-between items-center gap-2'>
-                    <CardTitle className='text-lg font-bold truncate flex-1 min-w-0' title={prompt.title}>
+                    <CardTitle className='text-base font-bold line-clamp-2 break-words flex-1 min-w-0 leading-tight' title={prompt.title}>
                       {prompt.title}
                     </CardTitle>
                     <div className='shrink-0'>
@@ -920,7 +920,7 @@ export default function ContentManager() {
                 <HoverCard openDelay={200} closeDelay={100}>
                   <HoverCardTrigger asChild>
                     <p
-                      className='text-sm text-muted-foreground line-clamp-1 mb-3 cursor-help'
+                      className='text-sm text-muted-foreground line-clamp-2 mb-3 cursor-help min-h-[40px]'
                     >
                       {prompt.description || prompt.content}
                     </p>

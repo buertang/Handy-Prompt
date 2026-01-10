@@ -433,7 +433,7 @@ export default function CategoryManager() {
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-3">
                   <div className={cn("w-3 h-3 rounded-full ring-4 ring-opacity-20", category.color, category.color.replace('bg-', 'ring-'))} />
-                  <CardTitle className="text-lg font-bold">{category.name}</CardTitle>
+                  <CardTitle className="text-base font-bold line-clamp-2 break-words leading-tight">{category.name}</CardTitle>
                   {category.isDefault && (
                     <Badge variant="secondary" className="text-[10px] h-5 px-1.5 bg-secondary text-secondary-foreground border-border">
                       {t('common.default')}
@@ -456,7 +456,7 @@ export default function CategoryManager() {
               <HoverCard openDelay={200} closeDelay={100}>
                 <HoverCardTrigger asChild>
                   <p
-                    className="text-sm text-muted-foreground line-clamp-1 mb-6 leading-relaxed cursor-help"
+                    className="text-sm text-muted-foreground line-clamp-2 mb-6 leading-relaxed cursor-help min-h-[40px]"
                   >
                     {category.description || t('category.noDescription')}
                   </p>
