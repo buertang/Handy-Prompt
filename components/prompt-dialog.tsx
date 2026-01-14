@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import type { Prompt, Category, Tag } from '@/lib/db'
+import { CategoryDialog } from './category-dialog'
 
 interface PromptDialogProps {
   open: boolean
@@ -38,6 +39,7 @@ interface PromptDialogProps {
   categories: Category[]
   tags?: Tag[]
   onSave: (prompt: Prompt) => void
+  onCategoryAdded?: (category: Category) => void
 }
 
 const defaultPrompt: Prompt = {
@@ -59,10 +61,12 @@ export function PromptDialog({
   prompt,
   categories,
   tags = [],
-  onSave
+  onSave,
+  onCategoryAdded
 }: PromptDialogProps) {
   const [formData, setFormData] = useState<Prompt>(defaultPrompt)
   const [selectedTags, setSelectedTags] = useState<Option[]>([])
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false)
 
   const isEditMode = !!prompt && prompt.id !== ''
 
@@ -165,6 +169,16 @@ export function PromptDialog({
                   <SelectValue placeholder="选择分类" />
                 </SelectTrigger>
                 <SelectContent>
+                  <div
+                    className="relative flex w-full cursor-pointer items-center rounded-sm py-1.5 pl-2 pr-8 text-sm outline-none hover:bg-accent hover:text-accent-foreground border-b mb-1"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setCategoryDialogOpen(true)
+                    }}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    <span className="font-medium">新建分类...</span>
+                  </div>
                   {sortedCategories.map(c => (
                     <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                   ))}
@@ -288,6 +302,26 @@ export function PromptDialog({
           </div>
         </DialogFooter>
       </DialogContent>
+
+      <CategoryDialog
+        open={categoryDialogOpen}
+        onOpenChange={setCategoryDialogOpen}
+        onSave={(newCategory) => {
+          const now = new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-')
+          const categoryToSave = {
+            ...newCategory,
+            createTime: now,
+            lastModified: now
+          }
+
+          if (onCategoryAdded) {
+            onCategoryAdded(categoryToSave)
+          }
+
+          // Auto-select the newly created category
+          setFormData({ ...formData, categoryId: categoryToSave.id })
+        }}
+      />
     </Dialog>
   )
 }

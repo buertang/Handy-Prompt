@@ -16,6 +16,8 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import MultipleSelector, { Option } from '@/components/ui/select-multi';
+import { CategoryDialog } from './category-dialog';
+import type { Category } from '@/lib/db';
 
 interface ContentSaveDialogProps {
   open: boolean;
@@ -45,6 +47,7 @@ export function ContentSaveDialog({ open, onOpenChange, initialContent }: Conten
   const [allTags, setAllTags] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -169,6 +172,16 @@ export function ContentSaveDialog({ open, onOpenChange, initialContent }: Conten
                       <SelectValue placeholder="选择分类" />
                     </SelectTrigger>
                     <SelectContent>
+                      <div
+                        className="relative flex w-full cursor-pointer items-center rounded-sm py-1.5 pl-2 pr-8 text-sm outline-none hover:bg-accent hover:text-accent-foreground border-b mb-1"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setCategoryDialogOpen(true)
+                        }}
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        <span className="font-medium">新建分类...</span>
+                      </div>
                       {categories.map(c => (
                         <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                       ))}
@@ -278,6 +291,40 @@ export function ContentSaveDialog({ open, onOpenChange, initialContent }: Conten
           </Button>
         </div>
       </div>
+
+      <CategoryDialog
+        open={categoryDialogOpen}
+        onOpenChange={setCategoryDialogOpen}
+        onSave={async (newCategory) => {
+          const now = new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-')
+          const categoryToSave = {
+            ...newCategory,
+            createTime: now,
+            lastModified: now
+          }
+
+          try {
+            // Save to backend
+            const res = await browser.runtime.sendMessage({
+              type: 'SAVE_CATEGORY',
+              data: categoryToSave
+            })
+
+            if (res && res.success) {
+              // Update local categories list
+              setCategories(prev => [...prev, categoryToSave])
+              // Auto-select the newly created category
+              setFormData({ ...formData, categoryId: categoryToSave.id })
+              toast.success('分类创建成功')
+            } else {
+              toast.error('分类创建失败')
+            }
+          } catch (e) {
+            console.error(e)
+            toast.error('分类创建失败')
+          }
+        }}
+      />
     </div>
   );
 }
