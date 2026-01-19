@@ -53,9 +53,40 @@ function App() {
     }
   }) || [];
 
+  const frequentPrompts = useLiveQuery(async () => {
+    try {
+      const all = await db.prompts.toArray();
+      return all
+        .filter(p => p.enabled && (p.usageCount || 0) > 0)
+        .sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0))
+        .slice(0, 3);
+    } catch (error) {
+      console.error("Failed to query frequent prompts:", error);
+      return [];
+    }
+  }) || [];
+
   const promptCount = prompts.length;
   const { system, updateSystem, appearance, updateAppearance } = useSettings();
   const [hasShortcut, setHasShortcut] = useState(true);
+  const [usageMode, setUsageMode] = useState<'recent' | 'frequent'>('recent');
+
+  // Load saved usage mode preference
+  useEffect(() => {
+    browser.storage.local.get('usageMode').then((result) => {
+      if (result.usageMode === 'recent' || result.usageMode === 'frequent') {
+        setUsageMode(result.usageMode);
+      }
+    }).catch(err => console.error('Failed to load usage mode:', err));
+  }, []);
+
+  // Save usage mode preference when it changes
+  const handleUsageModeChange = (mode: 'recent' | 'frequent') => {
+    setUsageMode(mode);
+    browser.storage.local.set({ usageMode: mode }).catch(err =>
+      console.error('Failed to save usage mode:', err)
+    );
+  };
 
   useEffect(() => {
     browser.commands.getAll().then((commands) => {
@@ -163,10 +194,10 @@ function App() {
         </Button>
       </header>
 
-      <main className="flex-1 p-3 space-y-3">
+      <main className="flex-1 p-3 space-y-2.5">
         {/* Prompt Library Card */}
-        <Card className="bg-card/50 shadow-sm border-border/50 gap-3 py-3">
-          <CardHeader className="p-3 pb-1">
+        <Card className="bg-card/50 shadow-sm border-border/50 gap-2 py-2">
+          <CardHeader className="p-2.5 pb-0.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <FolderIcon className="w-4 h-4" />
@@ -178,7 +209,7 @@ function App() {
               </div>
             </div>
           </CardHeader>
-          <CardContent className="p-3 pt-2">
+          <CardContent className="p-2.5 pt-1.5">
             <Button
               className="w-full font-medium shadow-sm transition-none"
               size="default"
@@ -209,18 +240,42 @@ function App() {
           </CardContent>
         </Card>
 
-        {/* Recent Prompts Card */}
-        {recentPrompts.length > 0 && (
-          <Card className="bg-card/50 shadow-sm border-border/50 gap-3 py-3">
-            <CardHeader className="p-3 pb-1">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Clock className="w-4 h-4" />
-                <CardTitle className="text-sm font-medium">{t('popup.recentUsed')}</CardTitle>
+        {/* Recent/Frequent Prompts Card */}
+        {(recentPrompts.length > 0 || frequentPrompts.length > 0) && (
+          <Card className="bg-card/50 shadow-sm border-border/50 gap-0.5 py-2">
+            <CardHeader className="p-2.5 pb-0.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Clock className="w-4 h-4" />
+                  <CardTitle className="text-sm font-medium">
+                    {usageMode === 'recent' ? t('popup.recentUsed') : '常用'}
+                  </CardTitle>
+                </div>
+                <div className="flex items-center gap-0.5 bg-muted/50 p-0.5 rounded-md">
+                  <button
+                    onClick={() => handleUsageModeChange('recent')}
+                    className={`px-2 py-0.5 text-xs font-medium rounded transition-colors ${usageMode === 'recent'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                  >
+                    最近
+                  </button>
+                  <button
+                    onClick={() => handleUsageModeChange('frequent')}
+                    className={`px-2 py-0.5 text-xs font-medium rounded transition-colors ${usageMode === 'frequent'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                  >
+                    常用
+                  </button>
+                </div>
               </div>
             </CardHeader>
-            <CardContent className="p-3 pt-2">
-              <div className="space-y-1">
-                {recentPrompts.map(prompt => (
+            <CardContent className="p-2.5 pt-0 pb-0">
+              <div className="space-y-0.5">
+                {(usageMode === 'recent' ? recentPrompts : frequentPrompts).map(prompt => (
                   <div
                     key={prompt.id}
                     className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50 cursor-pointer group transition-colors"
@@ -232,7 +287,14 @@ function App() {
                     title={prompt.content}
                   >
                     <div className="flex flex-col min-w-0 flex-1 mr-2">
-                      <span className="text-sm font-medium truncate">{prompt.title}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-medium truncate">{prompt.title}</span>
+                        {usageMode === 'frequent' && (
+                          <span className="text-[10px] font-medium text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-full shrink-0">
+                            {prompt.usageCount || 0}次
+                          </span>
+                        )}
+                      </div>
                       <span className="text-xs text-muted-foreground truncate opacity-70">{prompt.content}</span>
                     </div>
                     <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -246,11 +308,11 @@ function App() {
         )}
 
         {/* Usage Instructions Card */}
-        <Card className="bg-card/50 shadow-sm border-border/50 gap-3 py-3">
-          <CardHeader className="p-3 pb-1">
+        <Card className="bg-card/50 shadow-sm border-border/50 gap-0.5 py-2">
+          <CardHeader className="p-2.5 pb-0.5">
             <CardTitle className="text-sm font-medium text-muted-foreground">{t('popup.instructions')}</CardTitle>
           </CardHeader>
-          <CardContent className="p-3 pt-2 space-y-3 text-sm">
+          <CardContent className="p-2.5 pt-0 pb-1 space-y-2.5 text-sm">
             <div className="flex items-start gap-3">
               <div className="bg-primary/10 p-1.5 rounded-md mt-0.5">
                 <CommandIcon className="w-4 h-4 text-primary" />
