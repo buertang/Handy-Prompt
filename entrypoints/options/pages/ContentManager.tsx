@@ -67,9 +67,9 @@ import { sortPrompts, type PromptSortField, type SortDirection } from '@/lib/sor
 
 export default function ContentManager() {
   const { t } = useI18n();
-  const { appearance, updateAppearance, sorting, updateSorting, loading: settingsLoading } = useSettings();
+  const { appearance, updateAppearance, sorting, updateSorting, ui, updateUI, loading: settingsLoading } = useSettings();
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const selectedCategory = ui.contentSelectedCategory || 'all'
   const sortPreference = sorting.prompts
   const sortOption = sortPreference.field
   const sortDirection = sortPreference.direction
@@ -400,6 +400,17 @@ export default function ContentManager() {
     });
     return [{ id: 'all', name: t('content.allCategories') }, ...sorted]
   }, [categories, t])
+
+  useEffect(() => {
+    if (settingsLoading || selectedCategory === 'all' || categories.length === 0) return
+    if (!categoryMap[selectedCategory]) {
+      updateUI({ contentSelectedCategory: 'all' })
+    }
+  }, [settingsLoading, selectedCategory, categories.length, categoryMap, updateUI])
+
+  const setSelectedCategory = (categoryId: string) => {
+    updateUI({ contentSelectedCategory: categoryId })
+  }
 
   const gridColsClass = {
     1: 'grid-cols-1',

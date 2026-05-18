@@ -24,6 +24,7 @@ interface SystemSettings {
 
 interface UISettings {
   activeTab: string
+  contentSelectedCategory: string
 }
 
 // Define storage items
@@ -46,7 +47,8 @@ const systemSettings = storage.defineItem<SystemSettings>('sync:systemSettings',
 
 const uiSettings = storage.defineItem<UISettings>('local:uiSettings', {
   fallback: {
-    activeTab: 'home'
+    activeTab: 'home',
+    contentSelectedCategory: 'all'
   }
 })
 
@@ -58,7 +60,7 @@ export function useSettings() {
     suppressShortcutWarning: false,
     showCharityDisplay: true
   })
-  const [ui, setUI] = useState<UISettings>({ activeTab: 'home' })
+  const [ui, setUI] = useState<UISettings>({ activeTab: 'home', contentSelectedCategory: 'all' })
   const [sorting, setSorting] = useState<SortingSettings>(DEFAULT_SORTING_SETTINGS)
   const [loading, setLoading] = useState(true)
 
@@ -101,7 +103,7 @@ export function useSettings() {
     })
 
     const unwatchUI = uiSettings.watch((newValue) => {
-      setUI(newValue ?? { activeTab: 'home' })
+      setUI(newValue ?? { activeTab: 'home', contentSelectedCategory: 'all' })
     })
 
     const unwatchSorting = sortingSettings.watch((newValue) => {
@@ -177,7 +179,7 @@ export function useSettings() {
       // Reset to default values
       const defaultAppearance = { theme: 'system', viewMode: 'card' }
       const defaultSystem = { notifications: true, syncInterval: 15, suppressShortcutWarning: false, showCharityDisplay: true }
-      const defaultUI = { activeTab: 'home' }
+      const defaultUI = { activeTab: 'home', contentSelectedCategory: 'all' }
 
       setAppearance(defaultAppearance as AppearanceSettings)
       setSystem(defaultSystem)
