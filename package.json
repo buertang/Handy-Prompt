@@ -2,7 +2,7 @@
   "name": "handy-prompt",
   "description": "__MSG_extDesc__",
   "private": true,
-  "version": "1.0.13",
+  "version": "1.0.15",
   "type": "module",
   "scripts": {
     "dev": "wxt",
