@@ -48,6 +48,8 @@
     "unpin": "Unpin",
     "copy": "Copy",
     "sort": "Sort",
+    "ascending": "Ascending",
+    "descending": "Descending",
     "actions": "Actions",
     "createTime": "Created At",
     "lastModified": "Modified At",
@@ -226,6 +228,16 @@
       "popupPositionDesc": "Choose where the prompt picker appears when invoked via /p (Save dialog is always centered).",
       "followCursor": "Follow Cursor",
       "centerScreen": "Center Screen"
+    },
+    "sorting": {
+      "title": "Default Sorting",
+      "description": "Choose the default sorting used when management pages and the /p picker open.",
+      "prompts": "Prompt sorting",
+      "promptsDesc": "Affects Prompt Management and the prompt list in the /p picker.",
+      "categories": "Category sorting",
+      "categoriesDesc": "Affects Category Management and the category dropdown in the /p picker.",
+      "tags": "Tag sorting",
+      "tagsDesc": "Affects Tag Management and the tag filter bar in the /p picker."
     },
     "general": {
       "title": "General",

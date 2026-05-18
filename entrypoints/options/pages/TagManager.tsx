@@ -32,16 +32,22 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { useI18n } from '@/components/i18n-provider'
+import { useSettings } from '@/hooks/use-settings'
+import { sortNamedItems, type NamedSortField, type SortDirection } from '@/lib/sort-settings'
 
 export default function TagManager() {
   const { t } = useI18n()
+  const { sorting, updateSorting } = useSettings()
   const [searchQuery, setSearchQuery] = useState('')
-  const [sortOption, setSortOption] = useState<'name' | 'promptCount' | 'createTime' | 'lastModified'>('createTime')
+  const sortPreference = sorting.tags
+  const sortOption = sortPreference.field
+  const sortDirection = sortPreference.direction
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingTag, setEditingTag] = useState<Tag | null>(null)
 
@@ -83,28 +89,25 @@ export default function TagManager() {
       t.name.toLowerCase().includes(searchQuery.toLowerCase())
     )
 
-    return filtered.sort((a, b) => {
-      // 0. Default tag always on top
-      if (a.isDefault && !b.isDefault) return -1;
-      if (!a.isDefault && b.isDefault) return 1;
+    return sortNamedItems(filtered, sortPreference)
+  }, [tagsWithStats, searchQuery, sortPreference])
 
-      // First sort by pinned status
-      if (a.isPinned !== b.isPinned) return (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0);
-
-      switch (sortOption) {
-        case 'name':
-          return a.name.localeCompare(b.name, 'zh-CN')
-        case 'promptCount':
-          return b.promptCount - a.promptCount
-        case 'createTime':
-          return (b.createTime || '').localeCompare(a.createTime || '')
-        case 'lastModified':
-          return (b.lastModified || '').localeCompare(a.lastModified || '')
-        default:
-          return 0
-      }
-    })
-  }, [tagsWithStats, searchQuery, sortOption])
+  const tagSortLabels: Record<NamedSortField, string> = {
+    name: t('common.name'),
+    promptCount: t('common.promptCount'),
+    createTime: t('common.createTime'),
+    lastModified: t('common.lastModified'),
+  }
+  const sortDirectionLabels: Record<SortDirection, string> = {
+    asc: t('common.ascending'),
+    desc: t('common.descending'),
+  }
+  const setTagSortField = (field: NamedSortField) => {
+    updateSorting({ tags: { ...sortPreference, field } })
+  }
+  const setTagSortDirection = (direction: SortDirection) => {
+    updateSorting({ tags: { ...sortPreference, direction } })
+  }
 
   const handleEdit = (tag: Tag) => {
     setEditingTag(tag)
@@ -396,25 +399,39 @@ export default function TagManager() {
         <div className="flex items-center gap-2 shrink-0">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9 w-9 xl:w-[90px] p-0 xl:px-3 justify-center xl:justify-between shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 w-9 xl:w-auto xl:min-w-[128px] p-0 xl:px-3 justify-center xl:justify-between shrink-0"
+                aria-label={`${t('common.sort')}: ${tagSortLabels[sortOption]} ${sortDirectionLabels[sortDirection]}`}
+              >
                 <span className="flex items-center justify-center">
                   <ArrowUpDown className="h-4 w-4 opacity-50" />
-                  <span className="hidden xl:inline ml-1.5">{t('common.sort')}</span>
+                  <span className="hidden xl:inline ml-1.5 truncate">
+                    {tagSortLabels[sortOption]} {sortDirection === 'asc' ? '↑' : '↓'}
+                  </span>
                 </span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setSortOption('name')}>
+              <DropdownMenuItem onClick={() => setTagSortField('name')}>
                 {t('common.name')} {sortOption === 'name' && '✓'}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSortOption('promptCount')}>
+              <DropdownMenuItem onClick={() => setTagSortField('promptCount')}>
                 {t('common.promptCount')} {sortOption === 'promptCount' && '✓'}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSortOption('createTime')}>
+              <DropdownMenuItem onClick={() => setTagSortField('createTime')}>
                 {t('common.createTime')} {sortOption === 'createTime' && '✓'}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSortOption('lastModified')}>
+              <DropdownMenuItem onClick={() => setTagSortField('lastModified')}>
                 {t('common.lastModified')} {sortOption === 'lastModified' && '✓'}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setTagSortDirection('asc')}>
+                {t('common.ascending')} {sortDirection === 'asc' && '✓'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTagSortDirection('desc')}>
+                {t('common.descending')} {sortDirection === 'desc' && '✓'}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

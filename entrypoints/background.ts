@@ -1,4 +1,5 @@
 import { db, incrementUsage } from '@/lib/db';
+import { sortingSettings, sortNamedItems, sortPrompts } from '@/lib/sort-settings';
 import zh_CN from '@/locales/zh_CN.json';
 import en from '@/locales/en.json';
 
@@ -104,6 +105,11 @@ export default defineBackground(() => {
         try {
           const all = await db.prompts.toArray();
           const enabled = all.filter(p => p.enabled);
+          const [categories, sorting] = await Promise.all([
+            db.categories.toArray(),
+            sortingSettings.getValue(),
+          ]);
+          const categoryMap = new Map(categories.map(c => [c.id, c.name]));
           // Filter in memory for simplicity, or use dexie queries
           const query = message.query?.toLowerCase() || '';
           const categoryId = message.categoryId;
@@ -114,10 +120,13 @@ export default defineBackground(() => {
             return matchText && matchCategory;
           });
 
-          // Also fetch categories for the picker
-          const categories = await db.categories.toArray();
+          const sorted = sortPrompts(
+            filtered,
+            sorting.prompts,
+            id => categoryMap.get(id) || ''
+          );
 
-          sendResponse({ success: true, prompts: filtered, categories });
+          sendResponse({ success: true, prompts: sorted, categories });
         } catch (error) {
           console.error('Search prompts error:', error);
           sendResponse({ success: false, error: error });
@@ -145,9 +154,40 @@ export default defineBackground(() => {
     if (message.type === 'GET_CATEGORIES_AND_TAGS') {
       (async () => {
         try {
-          const categories = await db.categories.toArray();
-          const tags = await db.tags.toArray();
-          sendResponse({ success: true, categories, tags });
+          const [categories, tags, prompts, sorting] = await Promise.all([
+            db.categories.toArray(),
+            db.tags.toArray(),
+            db.prompts.toArray(),
+            sortingSettings.getValue(),
+          ]);
+          const categoryCounts = prompts.reduce<Record<string, number>>((acc, prompt) => {
+            acc[prompt.categoryId] = (acc[prompt.categoryId] || 0) + 1;
+            return acc;
+          }, {});
+          const tagCounts = prompts.reduce<Record<string, number>>((acc, prompt) => {
+            prompt.tags.forEach(tagName => {
+              acc[tagName] = (acc[tagName] || 0) + 1;
+            });
+            return acc;
+          }, {});
+          const sortedCategories = sortNamedItems(
+            categories.map(category => ({
+              ...category,
+              promptCount: categoryCounts[category.id] || 0,
+              isPinned: category.isDefault ? true : category.isPinned,
+            })),
+            sorting.categories
+          );
+          const sortedTags = sortNamedItems(
+            tags.map(tag => ({
+              ...tag,
+              promptCount: tagCounts[tag.name] || 0,
+              isPinned: tag.isDefault ? true : tag.isPinned,
+            })),
+            sorting.tags
+          );
+
+          sendResponse({ success: true, categories: sortedCategories, tags: sortedTags });
         } catch (error) {
           console.error('Get categories and tags error:', error);
           sendResponse({ success: false, error });

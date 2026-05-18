@@ -63,13 +63,16 @@ import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog'
 import { browser } from 'wxt/browser';
 import { useSettings } from '@/hooks/use-settings'
 import { useI18n } from '@/components/i18n-provider'
+import { sortPrompts, type PromptSortField, type SortDirection } from '@/lib/sort-settings'
 
 export default function ContentManager() {
   const { t } = useI18n();
-  const { appearance, updateAppearance, loading: settingsLoading } = useSettings();
+  const { appearance, updateAppearance, sorting, updateSorting, loading: settingsLoading } = useSettings();
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
-  const [sortOption, setSortOption] = useState<'title' | 'createTime' | 'lastModified' | 'category' | 'usage'>('createTime')
+  const sortPreference = sorting.prompts
+  const sortOption = sortPreference.field
+  const sortDirection = sortPreference.direction
   const getInitialMaxCols = () => {
     if (typeof window === 'undefined') return 5
     if (window.matchMedia('(min-width: 1536px)').matches) return 5
@@ -353,28 +356,8 @@ export default function ContentManager() {
       return matchesSearch && matchesCategory
     })
 
-    return filtered.sort((a, b) => {
-      // First sort by pinned status
-      if (a.isPinned !== b.isPinned) return (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0);
-
-      switch (sortOption) {
-        case 'title':
-          return a.title.localeCompare(b.title, 'zh-CN')
-        case 'createTime':
-          return (b.createTime || '').localeCompare(a.createTime || '')
-        case 'lastModified':
-          return (b.lastModified || '').localeCompare(a.lastModified || '')
-        case 'category':
-          const catA = categoryMap[a.categoryId]?.name || ''
-          const catB = categoryMap[b.categoryId]?.name || ''
-          return catA.localeCompare(catB, 'zh-CN')
-        case 'usage':
-          return (b.usageCount || 0) - (a.usageCount || 0)
-        default:
-          return 0
-      }
-    })
-  }, [searchTerm, selectedCategory, prompts, categoryMap, sortOption])
+    return sortPrompts(filtered, sortPreference, categoryId => categoryMap[categoryId]?.name || '')
+  }, [searchTerm, selectedCategory, prompts, categoryMap, sortPreference])
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
@@ -384,6 +367,24 @@ export default function ContentManager() {
   useEffect(() => {
     setCurrentPage(1)
   }, [searchTerm, selectedCategory, sortOption])
+
+  const promptSortLabels: Record<PromptSortField, string> = {
+    title: t('content.sortByTitle'),
+    createTime: t('common.createTime'),
+    lastModified: t('common.lastModified'),
+    category: t('content.category'),
+    usage: t('content.sortByUsage'),
+  }
+  const sortDirectionLabels: Record<SortDirection, string> = {
+    asc: t('common.ascending'),
+    desc: t('common.descending'),
+  }
+  const setPromptSortField = (field: PromptSortField) => {
+    updateSorting({ prompts: { ...sortPreference, field } })
+  }
+  const setPromptSortDirection = (direction: SortDirection) => {
+    updateSorting({ prompts: { ...sortPreference, direction } })
+  }
 
   const paginatedPrompts = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage
@@ -567,28 +568,42 @@ export default function ContentManager() {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size='sm' className="h-9 w-9 xl:w-[90px] p-0 xl:px-3 justify-center xl:justify-between shrink-0">
+              <Button
+                variant="outline"
+                size='sm'
+                className="h-9 w-9 xl:w-auto xl:min-w-[128px] p-0 xl:px-3 justify-center xl:justify-between shrink-0"
+                aria-label={`${t('common.sort')}: ${promptSortLabels[sortOption]} ${sortDirectionLabels[sortDirection]}`}
+              >
                 <span className="flex items-center justify-center">
                   <ArrowUpDown className="h-4 w-4 opacity-50" />
-                  <span className="hidden xl:inline ml-1.5">{t('common.sort')}</span>
+                  <span className="hidden xl:inline ml-1.5 truncate">
+                    {promptSortLabels[sortOption]} {sortDirection === 'asc' ? '↑' : '↓'}
+                  </span>
                 </span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setSortOption('title')}>
+              <DropdownMenuItem onClick={() => setPromptSortField('title')}>
                 {t('content.sortByTitle')} {sortOption === 'title' && '✓'}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSortOption('createTime')}>
+              <DropdownMenuItem onClick={() => setPromptSortField('createTime')}>
                 {t('common.createTime')} {sortOption === 'createTime' && '✓'}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSortOption('lastModified')}>
+              <DropdownMenuItem onClick={() => setPromptSortField('lastModified')}>
                 {t('common.lastModified')} {sortOption === 'lastModified' && '✓'}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSortOption('category')}>
+              <DropdownMenuItem onClick={() => setPromptSortField('category')}>
                 {t('content.category')} {sortOption === 'category' && '✓'}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSortOption('usage')}>
+              <DropdownMenuItem onClick={() => setPromptSortField('usage')}>
                 {t('content.sortByUsage')} {sortOption === 'usage' && '✓'}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setPromptSortDirection('asc')}>
+                {t('common.ascending')} {sortDirection === 'asc' && '✓'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setPromptSortDirection('desc')}>
+                {t('common.descending')} {sortDirection === 'desc' && '✓'}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

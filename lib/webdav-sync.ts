@@ -51,6 +51,59 @@ export const loadWebDavIndex = async (client: WebDAVClient): Promise<string[]> =
   }
 }
 
+type RestorableNamedItem = {
+  id: string
+  name: string
+  isDefault?: boolean
+}
+
+const mergeNamedItemsForRestore = <T extends RestorableNamedItem>(
+  backupItems: T[],
+  localDefault?: T
+) => {
+  const idMap = new Map<string, string>()
+  const mergedByName = new Map<string, T>()
+
+  const addOrMergeByName = (item: T, originalId: string) => {
+    const existing = mergedByName.get(item.name)
+
+    if (existing) {
+      idMap.set(originalId, existing.id)
+      mergedByName.set(item.name, {
+        ...existing,
+        ...item,
+        id: existing.id,
+        name: existing.name,
+        isDefault: Boolean(existing.isDefault || item.isDefault),
+      } as T)
+      return
+    }
+
+    idMap.set(originalId, item.id)
+    mergedByName.set(item.name, item)
+  }
+
+  for (const item of backupItems) {
+    if (localDefault && (item.isDefault || item.name === localDefault.name)) {
+      addOrMergeByName({
+        ...localDefault,
+        ...item,
+        id: localDefault.id,
+        name: localDefault.name,
+        isDefault: true,
+      } as T, item.id)
+      continue
+    }
+
+    addOrMergeByName(item, item.id)
+  }
+
+  return {
+    items: Array.from(mergedByName.values()),
+    idMap,
+  }
+}
+
 const saveWebDavIndex = async (client: WebDAVClient, files: string[]) => {
   const indexPath = getFilePath(WEB_DAV_INDEX_FILE)
   await client.putFileContents(indexPath, JSON.stringify(files))
@@ -141,24 +194,38 @@ export const restoreFromWebDav = async (config: WebDavConfig, fileName: string) 
   const tags = json.data.tags as Tag[]
 
   await db.transaction('rw', db.prompts, db.categories, db.tags, async () => {
+    const [localDefaultCategory, localDefaultTag] = await Promise.all([
+      db.categories.filter(c => c.isDefault).first(),
+      db.tags.filter(t => Boolean(t.isDefault)).first(),
+    ])
+    const { items: categoriesToRestore, idMap: categoryIdMap } = mergeNamedItemsForRestore(
+      categories,
+      localDefaultCategory
+    )
+    const { items: tagsToRestore } = mergeNamedItemsForRestore(tags, localDefaultTag)
+
     // Clear prompts - no hooks to worry about
     await db.prompts.clear()
     
     // For categories: delete only non-default items, then upsert from backup
     await db.categories.filter(c => !c.isDefault).delete()
-    if (categories.length) {
-      await db.categories.bulkPut(categories)
+    if (categoriesToRestore.length) {
+      await db.categories.bulkPut(categoriesToRestore)
     }
     
     // For tags: delete only non-default items, then upsert from backup
     await db.tags.filter(t => !t.isDefault).delete()
-    if (tags.length) {
-      await db.tags.bulkPut(tags)
+    if (tagsToRestore.length) {
+      await db.tags.bulkPut(tagsToRestore)
     }
     
     // Add prompts
     if (prompts.length) {
-      await db.prompts.bulkAdd(prompts)
+      const promptsToRestore = prompts.map(prompt => ({
+        ...prompt,
+        categoryId: categoryIdMap.get(prompt.categoryId) ?? prompt.categoryId,
+      }))
+      await db.prompts.bulkAdd(promptsToRestore)
     }
   })
 

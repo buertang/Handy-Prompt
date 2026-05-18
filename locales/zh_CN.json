@@ -48,6 +48,8 @@
     "unpin": "取消置顶",
     "copy": "复制",
     "sort": "排序",
+    "ascending": "升序",
+    "descending": "降序",
     "actions": "操作",
     "createTime": "创建时间",
     "lastModified": "最近修改",
@@ -226,6 +228,16 @@
       "popupPositionDesc": "设置使用 /p 唤出提示词面板时的显示位置（保存提示词弹窗始终居中）。",
       "followCursor": "跟随光标",
       "centerScreen": "屏幕居中"
+    },
+    "sorting": {
+      "title": "默认排序",
+      "description": "设置管理页和 /p 面板打开时默认使用的排序方式。",
+      "prompts": "提示词排序",
+      "promptsDesc": "影响提示词管理页和 /p 面板中的提示词列表。",
+      "categories": "分类排序",
+      "categoriesDesc": "影响分类管理页和 /p 面板的分类下拉列表。",
+      "tags": "标签排序",
+      "tagsDesc": "影响标签管理页和 /p 面板的标签筛选栏。"
     },
     "general": {
       "title": "通用",

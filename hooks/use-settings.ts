@@ -1,5 +1,11 @@
 import { storage } from '#imports'
 import { useEffect, useState } from 'react'
+import {
+  DEFAULT_SORTING_SETTINGS,
+  normalizeSortingSettings,
+  sortingSettings,
+  type SortingSettings,
+} from '@/lib/sort-settings'
 
 type Theme = 'system' | 'light' | 'dark'
 
@@ -53,21 +59,24 @@ export function useSettings() {
     showCharityDisplay: true
   })
   const [ui, setUI] = useState<UISettings>({ activeTab: 'home' })
+  const [sorting, setSorting] = useState<SortingSettings>(DEFAULT_SORTING_SETTINGS)
   const [loading, setLoading] = useState(true)
 
   // Load settings and watch for changes
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const [appearanceData, systemData, uiData] = await Promise.all([
+        const [appearanceData, systemData, uiData, sortingData] = await Promise.all([
           appearanceSettings.getValue(),
           systemSettings.getValue(),
-          uiSettings.getValue()
+          uiSettings.getValue(),
+          sortingSettings.getValue()
         ])
 
         setAppearance(appearanceData)
         setSystem(systemData)
         setUI(uiData)
+        setSorting(normalizeSortingSettings(sortingData))
       } catch (error) {
         console.error('Failed to load settings:', error)
       } finally {
@@ -95,10 +104,15 @@ export function useSettings() {
       setUI(newValue ?? { activeTab: 'home' })
     })
 
+    const unwatchSorting = sortingSettings.watch((newValue) => {
+      setSorting(normalizeSortingSettings(newValue))
+    })
+
     return () => {
       unwatchAppearance()
       unwatchSystem()
       unwatchUI()
+      unwatchSorting()
     }
   }, [])
 
@@ -135,13 +149,29 @@ export function useSettings() {
     }
   }
 
+  // Update sorting settings
+  const updateSorting = async (updates: Partial<SortingSettings>) => {
+    const newSettings = normalizeSortingSettings({
+      prompts: { ...sorting.prompts, ...updates.prompts },
+      categories: { ...sorting.categories, ...updates.categories },
+      tags: { ...sorting.tags, ...updates.tags },
+    })
+    setSorting(newSettings)
+    try {
+      await sortingSettings.setValue(newSettings)
+    } catch (error) {
+      console.error('Failed to save sorting settings:', error)
+    }
+  }
+
   // Reset all settings
   const resetSettings = async () => {
     try {
       await Promise.all([
         appearanceSettings.removeValue(),
         systemSettings.removeValue(),
-        uiSettings.removeValue()
+        uiSettings.removeValue(),
+        sortingSettings.removeValue()
       ])
 
       // Reset to default values
@@ -152,6 +182,7 @@ export function useSettings() {
       setAppearance(defaultAppearance as AppearanceSettings)
       setSystem(defaultSystem)
       setUI(defaultUI)
+      setSorting(DEFAULT_SORTING_SETTINGS)
     } catch (error) {
       console.error('Failed to reset settings:', error)
     }
@@ -161,10 +192,12 @@ export function useSettings() {
     appearance,
     system,
     ui,
+    sorting,
     loading,
     updateAppearance,
     updateSystem,
     updateUI,
+    updateSorting,
     resetSettings
   }
 } 

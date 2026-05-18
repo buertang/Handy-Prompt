@@ -9,14 +9,32 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button'
 import { browser } from 'wxt/browser'
 import { cn } from '@/lib/utils'
+import type { NamedSortField, PromptSortField, SortDirection } from '@/lib/sort-settings'
 
 export default function Settings() {
   const { t, language, setLanguage } = useI18n()
-  const { system, updateSystem, appearance, updateAppearance } = useSettings()
+  const { system, updateSystem, appearance, updateAppearance, sorting, updateSorting } = useSettings()
   const { setTheme } = useTheme({
     theme: appearance.theme,
     onThemeChange: (theme) => updateAppearance({ theme })
   })
+  const promptSortOptions: { value: PromptSortField; label: string }[] = [
+    { value: 'title', label: t('content.sortByTitle') },
+    { value: 'createTime', label: t('common.createTime') },
+    { value: 'lastModified', label: t('common.lastModified') },
+    { value: 'category', label: t('content.category') },
+    { value: 'usage', label: t('content.sortByUsage') },
+  ]
+  const namedSortOptions: { value: NamedSortField; label: string }[] = [
+    { value: 'name', label: t('common.name') },
+    { value: 'promptCount', label: t('common.promptCount') },
+    { value: 'createTime', label: t('common.createTime') },
+    { value: 'lastModified', label: t('common.lastModified') },
+  ]
+  const directionOptions: { value: SortDirection; label: string }[] = [
+    { value: 'asc', label: t('common.ascending') },
+    { value: 'desc', label: t('common.descending') },
+  ]
 
   return (
     <div className='flex flex-col gap-6 max-w-4xl mx-auto'>
@@ -142,6 +160,125 @@ export default function Settings() {
                 <LayoutTemplate className="h-4 w-4 mr-2" />
                 {t('settingsPage.appearance.centerScreen')}
               </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('settingsPage.sorting.title')}</CardTitle>
+          <CardDescription>{t('settingsPage.sorting.description')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <Label className="text-base">{t('settingsPage.sorting.prompts')}</Label>
+              <p className="text-sm text-muted-foreground">
+                {t('settingsPage.sorting.promptsDesc')}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 w-full md:w-[320px]">
+              <Select
+                value={sorting.prompts.field}
+                onValueChange={(field: PromptSortField) => updateSorting({ prompts: { ...sorting.prompts, field } })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {promptSortOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={sorting.prompts.direction}
+                onValueChange={(direction: SortDirection) => updateSorting({ prompts: { ...sorting.prompts, direction } })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {directionOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <Label className="text-base">{t('settingsPage.sorting.categories')}</Label>
+              <p className="text-sm text-muted-foreground">
+                {t('settingsPage.sorting.categoriesDesc')}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 w-full md:w-[320px]">
+              <Select
+                value={sorting.categories.field}
+                onValueChange={(field: NamedSortField) => updateSorting({ categories: { ...sorting.categories, field } })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {namedSortOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={sorting.categories.direction}
+                onValueChange={(direction: SortDirection) => updateSorting({ categories: { ...sorting.categories, direction } })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {directionOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <Label className="text-base">{t('settingsPage.sorting.tags')}</Label>
+              <p className="text-sm text-muted-foreground">
+                {t('settingsPage.sorting.tagsDesc')}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 w-full md:w-[320px]">
+              <Select
+                value={sorting.tags.field}
+                onValueChange={(field: NamedSortField) => updateSorting({ tags: { ...sorting.tags, field } })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {namedSortOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={sorting.tags.direction}
+                onValueChange={(direction: SortDirection) => updateSorting({ tags: { ...sorting.tags, direction } })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {directionOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>

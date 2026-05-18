@@ -31,11 +31,14 @@ import { importFromUrl, handleFileSelect } from '@/lib/import'
 import { ImportUrlDialog } from '@/components/import-url-dialog'
 import { useRef } from 'react'
 import { useI18n } from '@/components/i18n-provider'
+import { useSettings } from '@/hooks/use-settings'
+import { sortNamedItems, type NamedSortField, type SortDirection } from '@/lib/sort-settings'
 
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
@@ -43,8 +46,11 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 
 export default function CategoryManager() {
   const { t } = useI18n()
+  const { sorting, updateSorting } = useSettings()
   const [searchQuery, setSearchQuery] = useState('')
-  const [sortOption, setSortOption] = useState<'name' | 'promptCount' | 'createTime' | 'lastModified'>('createTime')
+  const sortPreference = sorting.categories
+  const sortOption = sortPreference.field
+  const sortDirection = sortPreference.direction
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
 
@@ -93,28 +99,25 @@ export default function CategoryManager() {
       (c.description || '').toLowerCase().includes(searchQuery.toLowerCase())
     )
 
-    return filtered.sort((a, b) => {
-      // 0. Default category always on top
-      if (a.isDefault && !b.isDefault) return -1;
-      if (!a.isDefault && b.isDefault) return 1;
+    return sortNamedItems(filtered, sortPreference)
+  }, [categoriesWithStats, searchQuery, sortPreference])
 
-      // First sort by pinned status
-      if (a.isPinned !== b.isPinned) return (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0);
-
-      switch (sortOption) {
-        case 'name':
-          return a.name.localeCompare(b.name, 'zh-CN')
-        case 'promptCount':
-          return b.promptCount - a.promptCount
-        case 'createTime':
-          return (b.createTime || '').localeCompare(a.createTime || '')
-        case 'lastModified':
-          return (b.lastModified || '').localeCompare(a.lastModified || '')
-        default:
-          return 0
-      }
-    })
-  }, [categoriesWithStats, searchQuery, sortOption])
+  const categorySortLabels: Record<NamedSortField, string> = {
+    name: t('common.name'),
+    promptCount: t('common.promptCount'),
+    createTime: t('common.createTime'),
+    lastModified: t('common.lastModified'),
+  }
+  const sortDirectionLabels: Record<SortDirection, string> = {
+    asc: t('common.ascending'),
+    desc: t('common.descending'),
+  }
+  const setCategorySortField = (field: NamedSortField) => {
+    updateSorting({ categories: { ...sortPreference, field } })
+  }
+  const setCategorySortDirection = (direction: SortDirection) => {
+    updateSorting({ categories: { ...sortPreference, direction } })
+  }
 
   const handleEdit = (category: Category) => {
     setEditingCategory(category)
@@ -349,25 +352,39 @@ export default function CategoryManager() {
         <div className="flex flex-wrap items-center gap-2 shrink-0">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9 w-9 xl:w-[90px] p-0 xl:px-3 justify-center xl:justify-between shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 w-9 xl:w-auto xl:min-w-[128px] p-0 xl:px-3 justify-center xl:justify-between shrink-0"
+                aria-label={`${t('common.sort')}: ${categorySortLabels[sortOption]} ${sortDirectionLabels[sortDirection]}`}
+              >
                 <span className="flex items-center justify-center">
                   <ArrowUpDown className="h-4 w-4 opacity-50" />
-                  <span className="hidden xl:inline ml-1.5">{t('common.sort')}</span>
+                  <span className="hidden xl:inline ml-1.5 truncate">
+                    {categorySortLabels[sortOption]} {sortDirection === 'asc' ? '↑' : '↓'}
+                  </span>
                 </span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setSortOption('name')}>
+              <DropdownMenuItem onClick={() => setCategorySortField('name')}>
                 {t('common.name')} {sortOption === 'name' && '✓'}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSortOption('promptCount')}>
+              <DropdownMenuItem onClick={() => setCategorySortField('promptCount')}>
                 {t('common.promptCount')} {sortOption === 'promptCount' && '✓'}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSortOption('createTime')}>
+              <DropdownMenuItem onClick={() => setCategorySortField('createTime')}>
                 {t('common.createTime')} {sortOption === 'createTime' && '✓'}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSortOption('lastModified')}>
+              <DropdownMenuItem onClick={() => setCategorySortField('lastModified')}>
                 {t('common.lastModified')} {sortOption === 'lastModified' && '✓'}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setCategorySortDirection('asc')}>
+                {t('common.ascending')} {sortDirection === 'asc' && '✓'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setCategorySortDirection('desc')}>
+                {t('common.descending')} {sortDirection === 'desc' && '✓'}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
